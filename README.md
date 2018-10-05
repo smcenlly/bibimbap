@@ -24,15 +24,15 @@ That's why I want an enterprise-grade solution built for full-stack development.
 
 ## What I want
 
-* I want an old school monolith Framework, like Django, RoR, Symfony.
-* I want it to provide first-class test-first experience out of the box.
-* I want it to have visual regression testing.
-* I want it to have static analysis ability.
-* I want it to have a large UI library with advanced components, like tables, forms, graphs, and other.
-* I want it to provide a back-end solution built using PostgreSQL, like PostgREST or PostGraphQL, but tightly integrated with coding environment and framework's type system.
-* I want it to have CI/CD solution out of the box using k8s.
-* I want it to be able to scaffold, like RoR.
-* I want it to have an integrated admin solution like Django has.
+- I want an old school monolith Framework, like Django, RoR, Symfony.
+- I want it to provide first-class test-first experience out of the box.
+- I want it to have visual regression testing.
+- I want it to have a static analysis ability.
+- I want it to have a large UI library with advanced components, like tables, forms, graphs, and other.
+- I want it to provide a back-end solution built using PostgreSQL, like PostgREST or PostGraphQL, but tightly integrated with coding environment and framework's type system.
+- I want it to have a CI/CD solution out of the box using k8s.
+- I want it to be able to scaffold, like RoR.
+- I want it to have an integrated admin solution like Django has.
 
 I want it to have all of these components and features, so I could install them with one command, quickly set up CI and CD, add some data, scaffold it, and have all these covered with tests with test-first style.
 
@@ -41,14 +41,71 @@ A delicious mix of all the great ingredients. It sounds like bibimbap for me.
 I believe these requirements are more than real to implement. Also, I have some more if I finish these first.
 
 Like:
-* I want it to be offline first.
-* I want it to come with an integrated developer environment and cloud-editor.
-* I want it to store the code as an AST.
-* I want it to run all the code tests, visual regression tests, and integrated tests just for pieces of the product that were changed at the moment and not doing all the plain-text building stuff for every step, so it would be swift and provide the smallest feedback loop possible.
-* I want it to have a database editor with migration generation on every change, like if you update a table using some interface and you get a migration of this change automatically so you could easily version your database.
-* I want the integrated editor to have a pair and mob programming integration.
-* I want to have a marketplace of bibimbap professionals and learning center for them.
+
+- I want it to be offline first.
+- I want it to come with an integrated developer environment and cloud-editor.
+- I want it to store the code as an AST.
+- I want it to run all the code tests, visual regression tests, and integrated tests just for pieces of the product that were changed at the moment and not doing all the plain-text building stuff for every step, so it would be swift and provide the smallest feedback loop possible.
+- I want it to have a database editor with migration generation on every change, like if you update a table using some interface and you get a migration of this change automatically so you could easily version your database.
+- I want the integrated editor to have a pair and mob programming integration.
+- I want to have a marketplace of bibimbap professionals and learning center for them.
 
 I want a new industry haha. Needless to say that I can't do the project of this size on my own. I don't have the money nor have I time. So, I'll be happy achieving at least 10% of these and dreaming about the rest.
 
 Life would be so much more comfortable with bibimbap.
+
+## Auto-exposed back-end right out of the database
+
+I love the idea behind [PostgREST](https://github.com/PostgREST/postgrest). The thing that advanced RDBMS like PostgreSQL, Oracle, or SQL Server has everything to build pretty much-advanced back-end right in the database using stored functions and roles system. PostgREST exposes tables and stored functions as REST endpoints so you can call them in your code just as you do with any other REST API. Also, it is quite secure if you do it right; since, PostgreSQL has advanced roles and privileges system, row-level security, and you can encapsulate security critical tables and functions in unexposed schemes. Moreover, it's much faster than working with a database using some back-end language, because you don't have this messaging overhead when your language of choice request a database. All of your queries execute directly in a database.
+
+REST API's are great, yet they require you to do much boilerplate stuff, especially if you use strictly typed environments, you have to type everything twice both in the database and the code.
+
+I'd like to get rid of this step providing code generation for TypeScript type definitions which I can use in the code. Also, I don't see any reason not to use some sort of DSL similar to SQL. Because SQL is excellent, and if I have it in my app, I have a more powerful tool for data handling. Also, this saves some time when I only need to do some joins filters and don't want to create views in the database for this.
+
+That is how it could look like:
+
+```TypeScript
+/**
+ * Data namespace is provided in the type definitions file generated right out
+ * of the exposed database schema
+ */
+
+const selectComponentWithManufacturers = sql
+  .select(
+    Data.Component,
+    {manufacturers: sql.array(Data.Manufacturer)}
+  )
+  .from(
+    Data.Component,
+    sql.from
+      .leftOuterJoin(Data.ComponentManufacturer)
+      .on(Data.ComponentManufacturer.componentId
+        .equals(Data.Component.id)),
+    sql.from
+      .leftOuterJoin(Data.Manufacturer)
+      .on(Data.ComponentManufacturer.manufacturerId
+        .equals(Data.Manufacturer.id))
+  )
+  .groupBy(Data.Component.id);
+
+const ComponentRow = sql
+  .subQuery(selectComponentWithManufacturers)
+  .as('ComponentRow');
+
+const selectDeviceDetails = (deviceId: Data.Device.id) =>
+  SQL
+    .select(Data.Device, {components: sql.array(ComponentRow)})
+    .from(
+      Data.Device,
+      sql.from
+        .leftOuterJoin(Data.DeviceComponent)
+        .on(Data.DeviceComponent.deviceId.equals(Data.Device.id)),
+      sql.from
+        .leftOuterJoin(ComponentRow)
+        .on(ComponentRow.id.equals(Data.DeviceComponent.componentId))
+      )
+    .groupBy(Data.Device.id)
+    .where(Data.Device.id.equals(deviceId))
+    .limit(1)
+    .unfold();
+```
