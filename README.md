@@ -109,3 +109,5 @@ const selectDeviceDetails = (deviceId: Data.Device.id) =>
     .limit(1)
     .unfold();
 ```
+
+### PostgreMote

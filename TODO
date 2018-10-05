@@ -1,0 +1,7 @@
+PostgreMote:
+  ☐ configure jest and wallaby
+  ☐ implement an SQL-like DSL
+  ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
+  ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
+  ☐ implement database migration tool for PostgreMote with auto code generation
+  ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
