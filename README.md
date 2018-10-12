@@ -93,7 +93,7 @@ const ComponentRow = sql
   .as('ComponentRow');
 
 const selectDeviceDetails = (deviceId: Data.Device.id) =>
-  SQL
+  sql
     .select(Data.Device, {components: sql.array(ComponentRow)})
     .from(
       Data.Device,
