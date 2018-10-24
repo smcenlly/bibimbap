@@ -111,3 +111,18 @@ const selectDeviceDetails = (deviceId: Data.Device.id) =>
 ```
 
 ### PostgreMote
+
+PostgreMote exposes several tools:
+1. PostgreSQL web interface
+2. Migration tool
+3. JavaScript, TypeScript, and PgSQL code generation tools
+4. Testing and code coverage tool
+
+#### Web interface
+
+PostgreMote comes with a web interface dedicated to PostgreSQL management. The primary goal for this interface is to generate atomic migrations automatically
+on each change of the database, so you could free yourself from doing this manually. Also, this UI provides a tool for resolving git conflicts on migrations and collects information about code coverage on each test run so you could see if everything in your SQL code is covered well with your test suite.
+
+#### Code generation
+
+PostgreMote can generate JavaScript and TypeScript glue code that you can use in your app to make queries to the database. It comes handy with TypeScript because it also covers everything with correct types represented in the database.
