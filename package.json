@@ -4,7 +4,7 @@
   "description": "Bibimbap — is my favorite Korean dish. It is a warm steamed white rice on the bottom of a bowl, and namul (sautéed and seasoned vegetables), gochujang (hot pepper soybean paste), and sesame oil over the rice. You have to mix it well with a spoon just before eating.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "repository": {
     "type": "git",

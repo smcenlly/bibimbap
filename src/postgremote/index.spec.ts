@@ -3,7 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import request from 'supertest';
-import { jsql, JSQLQuery } from './jsql';
+import { jsql, Query } from './jsql';
 
 const connectionParams = {
   user: 'postgremote',
@@ -20,7 +20,7 @@ app.post('/', async (req, res) => {
   const pool: Pool = app.get('pool');
   const client = await pool.connect();
   try {
-    const { rows } = await client.query(jsql(req.body as JSQLQuery));
+    const { rows } = await client.query(jsql(req.body as Query));
     res.send(rows);
   } finally {
     client.release();
