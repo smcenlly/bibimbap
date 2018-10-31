@@ -107,7 +107,7 @@ describe('making a query using an API end point', async () => {
         )
         .expect(403);
     } finally {
-      // clearing everything up
+      // cleaning everything up
       await client.query(jsql.drop(TestTable).ifExists());
       await client.query(jsql.drop(TestRoleTwo).ifExists());
       await client.query(jsql.drop(TestRoleOne).ifExists());
