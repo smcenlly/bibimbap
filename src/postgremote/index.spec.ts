@@ -1,9 +1,6 @@
 import { Pool } from 'pg';
-import express from 'express';
-import cookieParser from 'cookie-parser';
-import bodyParser from 'body-parser';
 import request from 'supertest';
-import { jsql, Query } from './jsql';
+import { app } from './index';
 
 const connectionParams = {
   user: 'postgremote',
@@ -11,21 +8,6 @@ const connectionParams = {
   database: 'postgremote',
   password: ''
 };
-
-const app = express();
-app.use(cookieParser());
-app.use(bodyParser.json());
-
-app.post('/', async (req, res) => {
-  const pool: Pool = app.get('pool');
-  const client = await pool.connect();
-  try {
-    const { rows } = await client.query(jsql(req.body as Query));
-    res.send(rows);
-  } finally {
-    client.release();
-  }
-});
 
 describe('making a query using an API end point', async () => {
   let pool: Pool;
