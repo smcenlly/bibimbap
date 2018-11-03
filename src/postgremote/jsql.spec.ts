@@ -1,6 +1,18 @@
-import { jsql, JSQLError, Table, Column, OutputName } from './jsql';
+import { jsql, JSQLError } from './jsql';
 
 describe(`DSL`, () => {
+  describe(`create table`, () => {
+    const TableName = jsql.table('TableName', [
+      jsql.column('column', {
+        type: String,
+        defaultValue: 'default value'
+      })
+    ]);
+    expect(jsql.create(TableName).toString()).toBe(
+      `CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`
+    );
+  });
+
   describe(`select`, () => {
     test(`should implement JSQLQuery type, otherwiser throw error`, () => {
       expect(() => {
@@ -14,77 +26,47 @@ describe(`DSL`, () => {
       }).toThrowError(JSQLError);
     });
 
-    test(`SELECT 1`, () => {
-      expect(jsql({ select: 1 })).toBe(`SELECT 1`);
-      expect(jsql.select(1).toString()).toBe(`SELECT 1`);
-    });
+    test(`SELECT "TableName".* FROM "TableName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', { type: String })
+      ]);
 
-    test(`SELECT TRUE`, () => {
-      expect(jsql({ select: true })).toBe(`SELECT TRUE`);
-      expect(jsql.select(true).toString()).toBe(`SELECT TRUE`);
-    });
-
-    test(`SELECT FALSE`, () => {
-      expect(jsql({ select: false })).toBe(`SELECT FALSE`);
-      expect(jsql.select(false).toString()).toBe(`SELECT FALSE`);
-    });
-
-    test(`SELECT * FROM "tableName"`, () => {
-      expect(jsql({ select: '*', from: 'tableName' as Table })).toBe(
-        `SELECT * FROM "tableName"`
+      expect(String(jsql.select(TableName['*']).from(TableName))).toBe(
+        `SELECT "TableName".* FROM "TableName"`
       );
-
-      expect(
-        jsql
-          .select('*')
-          .from('tableName' as Table)
-          .toString()
-      ).toBe(`SELECT * FROM "tableName"`);
     });
 
-    test(`SELECT "firstName", "lastName" FROM "users"`, () => {
-      expect(
-        jsql({
-          select: ['firstName' as Column, 'lastName' as Column],
-          from: 'users' as Table
+    test(`SELECT "User"."firstName", "User"."lastName" FROM "User"`, () => {
+      const User = jsql.table('User', [
+        jsql.column('firstName', {
+          type: String,
+          notNull: true
+        }),
+        jsql.column('lastName', {
+          type: String,
+          notNull: true
         })
-      ).toBe(`SELECT "firstName", "lastName" FROM "users"`);
+      ]);
+      jsql.select(User.firstName).from(User);
 
       expect(
-        '' +
-          jsql
-            .select(['firstName' as Column, 'lastName' as Column])
-            .from('users' as Table)
-      ).toBe(`SELECT "firstName", "lastName" FROM "users"`);
+        String(jsql.select(User.firstName, User.lastName).from(User))
+      ).toBe(`SELECT "User"."firstName", "User"."lastName" FROM "User"`);
     });
 
-    test(`SELECT "firstName" as "name", "lastName" FROM "users"`, () => {
-      expect(
-        jsql({
-          select: [
-            {
-              column: 'firstName' as Column,
-              as: 'name' as OutputName
-            },
-            'lastName' as Column
-          ],
-          from: 'users' as Table
-        })
-      ).toBe(`SELECT "firstName" as "name", "lastName" FROM "users"`);
+    test(`SELECT "User"."username" as "firstName", "User"."lastName" FROM "User"`, () => {
+      const User = jsql.table('User', [
+        jsql.column('username', { type: String }),
+        jsql.column('lastName', { type: String })
+      ]);
 
       expect(
         String(
-          jsql
-            .select([
-              {
-                column: 'firstName' as Column,
-                as: 'name' as OutputName
-              },
-              'lastName' as Column
-            ])
-            .from('users' as Table)
+          jsql.select(User.username.as('firstName'), User.lastName).from(User)
         )
-      ).toBe(`SELECT "firstName" as "name", "lastName" FROM "users"`);
+      ).toBe(
+        `SELECT "User"."username" as "firstName", "User"."lastName" FROM "User"`
+      );
     });
   });
 });

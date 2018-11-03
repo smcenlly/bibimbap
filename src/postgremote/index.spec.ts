@@ -40,16 +40,16 @@ describe('making a query using an API end point', async () => {
     // these permissions should apply in order to make this test
 
     // just a simple table with default name
-    @jsql.entity
-    class TestTable extends Table {
-      name: String = `I'm just a default value for a new table`;
-    }
+    const TestTable = jsql.table('TestTable', [
+      jsql.column('name', {
+        type: String,
+        defaultValue: `I'm just a default value for a new table`
+      })
+    ]);
 
     // and a few of the roles
-    @jsql.entity
-    class TestRoleOne extends Role {}
-    @jsql.entity
-    class TestRoleTwo extends Role {}
+    const TestRoleOne = jsql.role('TestRoleOne');
+    const TestRoleTwo = jsql.role('TestRoleTwo');
 
     try {
       // we create all of the required entities
@@ -82,7 +82,7 @@ describe('making a query using an API end point', async () => {
           jsql
             .select('*')
             .from(TestTable)
-            .toPlainObject()
+            .valueOf()
         )
         .expect(200);
       // and it should actually return a list of rows as it usually does
@@ -91,9 +91,9 @@ describe('making a query using an API end point', async () => {
       ]);
 
       // now let's try the test role two
-      const testTokenTwo = jwt.sign({sub:TestRoleTwo.name}, cert, {
+      const testTokenTwo = jwt.sign({ sub: TestRoleTwo.name }, cert, {
         algoritm: 'RS512'
-      })
+      });
 
       // and here we get an error
       await request(app)

@@ -1,23 +1,117 @@
-type Nominal<K, T> = K & { __nominal: T };
+type ColumnSettings = {};
 
-export type Table = Nominal<string, 'Table'>;
+enum ColumnType {
+  LINKED,
+  FREE,
+  ASTERISK
+}
+type ColumnFree<ColumnName extends string> = {
+  kind: ColumnType.FREE;
+  columnName: ColumnName;
+  columnSettings: ColumnSettings;
+};
 
-export type Column = Nominal<string, 'Column'>;
+type ColumnLinked<
+  TableName extends string,
+  ColumnName extends string,
+  AliasName extends string = ''
+> = {
+  kind: ColumnType.LINKED;
+  tableName: TableName;
+  columnName: ColumnName;
+  aliasName?: AliasName;
+  columnSettings: ColumnSettings;
+};
 
-export type OutputName = Nominal<string, 'OutputName'>;
+type ColumnAsterisk<TableName extends string> = {
+  kind: ColumnType.ASTERISK;
+  tableName: TableName;
+};
 
-export type SelectList = Array<Column | { column: Column; as: OutputName }>;
-
-export type SelectExpression = number | boolean | '*' | SelectList;
-
-export type FromExpression = Table;
-
-interface Select {
-  select: SelectExpression;
-  from?: FromExpression;
+function makeColumn<TableName extends string>(
+  columnName: TableName,
+  columnSettings: ColumnSettings
+): ColumnFree<TableName> {
+  return {
+    kind: ColumnType.FREE,
+    columnName: columnName,
+    columnSettings: columnSettings
+  };
 }
 
-export type Query = Select;
+type Table<TableName extends string, Columns extends ColumnFree<any>> = {
+  $: TableName;
+  ['*']: ColumnAsterisk<TableName>;
+} & {
+  [ColumnName in Columns['columnName']]: ColumnLinked<TableName, ColumnName> & {
+    as<AliasName extends string>(
+      aliasName: AliasName
+    ): ColumnLinked<TableName, ColumnName, AliasName>;
+  }
+};
+
+function makeTable<TableName extends string, Column extends ColumnFree<any>>(
+  tableName: TableName,
+  columns: Column[]
+): Table<TableName, Column> {
+  const result = {} as Table<TableName, Column>;
+
+  result['$'] = tableName;
+
+  result['*'] = {
+    kind: ColumnType.ASTERISK,
+    tableName: tableName
+  };
+
+  for (const column of columns) {
+    const columnLinked: ColumnLinked<TableName, Column['columnName']> = {
+      kind: ColumnType.LINKED,
+      tableName: tableName,
+      columnName: column.columnName,
+      columnSettings: column.columnSettings
+    };
+    result[column.columnName] = {
+      ...columnLinked,
+
+      as(aliasName) {
+        return {
+          ...columnLinked,
+          aliasName
+        };
+      }
+    };
+  }
+
+  return result;
+}
+
+export type SelectExpression =
+  | ColumnAsterisk<any>
+  | ColumnLinked<any, any>
+  | ColumnLinked<any, any, any>;
+
+export type FromExpression = Table<any, any>;
+
+export enum QueryType {
+  SELECT,
+  CREATE
+}
+
+interface Select {
+  kind: QueryType.SELECT;
+  select: SelectExpression[];
+  from: FromExpression;
+}
+
+export enum CreateType {
+  TABLE
+}
+
+interface Create {
+  kind: QueryType.CREATE;
+  create: CreateType;
+  entitytName: string;
+}
 
 export class JSQLError extends Error {
   constructor(message: string) {
@@ -26,56 +120,76 @@ export class JSQLError extends Error {
   }
 }
 
-export function jsql(query: Query): string {
-  if (query && query.select !== undefined) {
-    let expression: string = 'NULL';
+export function jsql(query: Select | Create): string {
+  if (query) {
+    switch (query.kind) {
+      case QueryType.SELECT:
+        const selectExpression = query.select
+          .map(expression => {
+            switch (expression.kind) {
+              case ColumnType.ASTERISK:
+                return `"${expression.tableName}".*`;
 
-    if (query.select === '*') {
-      expression = query.select;
-    } else if (typeof query.select === 'boolean') {
-      expression = query.select ? 'TRUE' : 'FALSE';
-    } else if (typeof query.select === 'number') {
-      expression = query.select.toString();
-    } else if (Array.isArray(query.select)) {
-      expression = query.select
-        .map(
-          item =>
-            typeof item === 'object' && 'column' in item
-              ? [`"${item.column}"`, `"${item.as}"`].join(' as ')
-              : `"${item}"`
-        )
-        .join(', ');
+              case ColumnType.LINKED:
+                const partsOfExpressionToRender = [
+                  `"${expression.tableName}"."${expression.columnName}"`
+                ];
+                if (expression.aliasName) {
+                  partsOfExpressionToRender.push(`"${expression.aliasName}"`);
+                }
+                return partsOfExpressionToRender.join(' as ');
+            }
+          })
+          .join(', ');
+
+        const fromExpression = query.from ? `FROM "${query.from.$}"` : '';
+
+        return [`SELECT ${selectExpression}`, fromExpression]
+          .filter(i => i)
+          .join(' ');
     }
-
-    const fromExpression = query.from ? `FROM "${query.from}"` : '';
-
-    return [`SELECT ${expression}`, fromExpression].filter(i => i).join(' ');
   }
   throw new JSQLError('JSQL cannot build query out of the provided object');
 }
 
 export namespace jsql {
-  class SelectGenerator {
-    private selectExpression: SelectExpression;
-    private fromExpression: FromExpression | undefined;
+  export const table = makeTable;
+  export const column = makeColumn;
 
-    constructor(expression: SelectExpression) {
-      this.selectExpression = expression;
-    }
+  export const select = (...selectExpressions: SelectExpression[]) =>
+    new class SelectGenerator {
+      private fromExpression?: FromExpression;
 
-    from(expression: FromExpression) {
-      this.fromExpression = expression;
-      return this;
-    }
+      from(fromExpression: Table<any, any>) {
+        this.fromExpression = fromExpression;
+        return this;
+      }
 
-    toString() {
-      return jsql({
-        select: this.selectExpression,
-        from: this.fromExpression
-      });
-    }
-  }
+      valueOf(): Select {
+        if (!this.fromExpression) {
+          throw new JSQLError(
+            `you should setup from where you want to do select`
+          );
+        }
 
-  export const select = (expression: SelectExpression) =>
-    new SelectGenerator(expression);
+        return {
+          kind: QueryType.SELECT,
+          select: selectExpressions,
+          from: this.fromExpression
+        };
+      }
+
+      toString() {
+        return jsql(this.valueOf());
+      }
+    }();
+
+  export const create = () =>
+    new class CreateGenerator {
+      constructor() {}
+
+      toString() {
+        return '';
+      }
+    }();
 }

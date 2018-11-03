@@ -1,6 +1,7 @@
 PostgreMote:
   ✔ configure jest and wallaby @done
   ☐ implement an SQL-like DSL @started
+    ✔ jsql should be serializable and jsql DSL feature-rich @done
     ☐ test escaping and sql injection prevention
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
