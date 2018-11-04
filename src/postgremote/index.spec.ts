@@ -58,7 +58,7 @@ describe('making a query using an API end point', async () => {
       await client.query(jsql.create(TestTable));
 
       // and insert an entry into the test table
-      await client.query(jsql.insert(new TestTable()));
+      await client.query(jsql.insert(TestTable, { name: 'Just for a test' }));
 
       // now we grant select permission to the TestRoleOne
       await client.query(jsql.grant.select.on(TestTable).to(TestRoleOne));
@@ -82,7 +82,7 @@ describe('making a query using an API end point', async () => {
           jsql
             .select(TestTable['*'])
             .from(TestTable)
-            .valueOf()
+            .toJSQL()
         )
         .expect(200);
       // and it should actually return a list of rows as it usually does
@@ -103,7 +103,7 @@ describe('making a query using an API end point', async () => {
           jsql
             .select(TestTable['*'])
             .from(TestTable)
-            .valueOf()
+            .toJSQL()
         )
         .expect(403);
     } finally {

@@ -15,8 +15,8 @@ describe(`DSL`, () => {
     });
 
     it(`should not allow to use special characters for query identifiers`, () => {
-      expect(() => escapeId('\'')).toThrow();
-      expect(() => escapeId('\"')).toThrow();
+      expect(() => escapeId("'")).toThrow();
+      expect(() => escapeId('"')).toThrow();
       expect(() => escapeId('&')).toThrow();
       expect(() => escapeId(';')).toThrow();
       expect(() => escapeId('%')).toThrow();
@@ -45,9 +45,10 @@ describe(`DSL`, () => {
         })
       ]);
 
-      expect(jsql.create(TableName).toString()).toBe(
-        `CREATE TABLE "TableName" ("column" text DEFAULT E'default value')`
-      );
+      expect(jsql.create(TableName).toQueryObject()).toEqual({
+        text: `CREATE TABLE "TableName" ("column" text DEFAULT E'default value')`,
+        values: []
+      });
     });
   });
 
@@ -55,12 +56,15 @@ describe(`DSL`, () => {
     test(`CREATE ROLE "TestRole"`, () => {
       const TestRole = jsql.role('TestRole');
 
-      expect(jsql.create(TestRole).toString()).toBe(`CREATE ROLE "TestRole"`);
+      expect(jsql.create(TestRole).toQueryObject()).toEqual({
+        text: `CREATE ROLE "TestRole"`,
+        values: []
+      });
     });
   });
 
   describe(`select`, () => {
-    test(`should implement JSQLQuery type, otherwiser throw error`, () => {
+    it(`should implement JSQLQuery type, otherwiser throw error`, () => {
       expect(() => {
         // @ts-ignore: Statically incorrect argument type
         jsql();
@@ -77,9 +81,12 @@ describe(`DSL`, () => {
         jsql.column('column', { type: String })
       ]);
 
-      expect(String(jsql.select(TableName['*']).from(TableName))).toBe(
-        `SELECT "TableName".* FROM "TableName"`
-      );
+      expect(
+        jsql
+          .select(TableName['*'])
+          .from(TableName)
+          .toQueryObject()
+      ).toEqual({ text: `SELECT "TableName".* FROM "TableName"`, values: [] });
     });
 
     test(`SELECT "User"."firstName", "User"."lastName" FROM "User"`, () => {
@@ -93,11 +100,16 @@ describe(`DSL`, () => {
           notNull: true
         })
       ]);
-      jsql.select(User.firstName).from(User);
 
       expect(
-        String(jsql.select(User.firstName, User.lastName).from(User))
-      ).toBe(`SELECT "User"."firstName", "User"."lastName" FROM "User"`);
+        jsql
+          .select(User.firstName, User.lastName)
+          .from(User)
+          .toQueryObject()
+      ).toEqual({
+        text: `SELECT "User"."firstName", "User"."lastName" FROM "User"`,
+        values: []
+      });
     });
 
     test(`SELECT "User"."username" as "firstName", "User"."lastName" FROM "User"`, () => {
@@ -107,12 +119,35 @@ describe(`DSL`, () => {
       ]);
 
       expect(
-        String(
-          jsql.select(User.username.as('firstName'), User.lastName).from(User)
-        )
-      ).toBe(
-        `SELECT "User"."username" as "firstName", "User"."lastName" FROM "User"`
-      );
+        jsql
+          .select(User.username.as('firstName'), User.lastName)
+          .from(User)
+          .toQueryObject()
+      ).toEqual({
+        text: `SELECT "User"."username" as "firstName", "User"."lastName" FROM "User"`,
+        values: []
+      });
+    });
+  });
+
+  describe(`insert`, () => {
+    test(`INSERT INTO "User" ("firstName", "lastName") VALUES ($1, $2)`, () => {
+      const User = jsql.table('User', [
+        jsql.column('firstName', { type: String }),
+        jsql.column('lastName', { type: String })
+      ]);
+
+      expect(
+        jsql
+          .insert(User, {
+            firstName: 'Alexander',
+            lastName: 'Yatkevich'
+          })
+          .toQueryObject()
+      ).toEqual({
+        text: `INSERT INTO "User" ("firstName", "lastName") VALUES ($1, $2)`,
+        values: ['Alexander', 'Yatkevich']
+      });
     });
   });
 });

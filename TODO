@@ -5,7 +5,10 @@ Security:
 PostgreMote:
   ☐ implement an SQL-like DSL
     ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON)
+    ☐ get rid of sqlstring dependency
     ☐ implement jsql.insert
+    ☐ check if columns for insert closure were declared in the table
+    ☐ check if there is at least one value to insert but columns with default values can be skiped
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
@@ -15,6 +18,9 @@ PostgreMote:
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
+
+Test runner:
+  ☐ implement bibimbap's own test runner
 
 Archive:
   ✔ implement jsql.role @done @project(PostgreMote)
