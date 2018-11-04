@@ -3,7 +3,7 @@ PostgreMote:
     ✔ implement jsql.role @done
     ✔ implement jsql.create(role) @done
     ✔ use $ as a JSQL type definition and $$ as a table name @done
-    ☐ escape string values
+    ✔ escape string values @done
     ☐ implement jsql.insert
     ☐ implement jsql.grant
     ☐ implement jsql.revoke

@@ -1,8 +1,43 @@
-import { jsql, JSQLError } from './jsql';
+import { jsql, JSQLError, escape, escapeId } from './jsql';
 
 describe(`DSL`, () => {
+  describe(`escaping`, () => {
+    it(`should escape string constants using C-style escapes`, () => {
+      expect(escape(`This is sql string " ' \" \' \` $$ $ hahaha \n `)).toBe(
+        `E'This is sql string \\" \\' \\" \\' \\\` \\$\\$ \\$ hahaha \\n '`
+      );
+    });
+
+    it(`should escape query identifiers with double quote`, () => {
+      expect(escapeId('TableName')).toBe('"TableName"');
+      expect(escapeId('property')).toBe('"property"');
+      expect(escapeId('UserTable.property')).toBe('"UserTable"."property"');
+    });
+
+    it(`should not allow to use special characters for query identifiers`, () => {
+      expect(() => escapeId('\'')).toThrow();
+      expect(() => escapeId('\"')).toThrow();
+      expect(() => escapeId('&')).toThrow();
+      expect(() => escapeId(';')).toThrow();
+      expect(() => escapeId('%')).toThrow();
+      expect(() => escapeId('$')).toThrow();
+    });
+
+    it(`should not allow any other value except string`, () => {
+      expect(() =>
+        // @ts-ignore
+        escape(124)
+      ).toThrow();
+
+      expect(() =>
+        // @ts-ignore
+        escapeId(124)
+      ).toThrow();
+    });
+  });
+
   describe(`create table`, () => {
-    test(`CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`, () => {
+    test(`CREATE TABLE "TableName" ("column" text DEFAULT E'default value')`, () => {
       const TableName = jsql.table('TableName', [
         jsql.column('column', {
           type: String,
@@ -11,7 +46,7 @@ describe(`DSL`, () => {
       ]);
 
       expect(jsql.create(TableName).toString()).toBe(
-        `CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`
+        `CREATE TABLE "TableName" ("column" text DEFAULT E'default value')`
       );
     });
   });

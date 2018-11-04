@@ -1,3 +1,33 @@
+import SqlString from 'sqlstring';
+
+export function escapeId(string: string): string {
+  if (typeof string !== 'string') {
+    throw new TypeError(
+      'Function escapeId takes only values type of string as an argument'
+    );
+  }
+  const forbiddenCharacters = Array.from(`'"&$%;`);
+  if (
+    forbiddenCharacters.some(forbidednCharacter =>
+      string.includes(forbidednCharacter)
+    )
+  ) {
+    throw new TypeError(
+      `Characters ${forbiddenCharacters} are denied to use in query identifiers`
+    );
+  }
+  return SqlString.escapeId(string).replace(/`/g, '"');
+}
+
+export function escape(string: string): string {
+  if (typeof string !== 'string') {
+    throw new TypeError(
+      'Function escape takes only values type of string as an argument'
+    );
+  }
+  return `E${SqlString.escape(string).replace(/(\$|\`)/g, '\\$1')}`;
+}
+
 enum JSQLType {
   COLUMN,
   TABLE,
@@ -116,14 +146,14 @@ function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
   };
 }
 
-export type SelectExpression =
+type SelectExpression =
   | ColumnAsterisk<any>
   | ColumnLinked<any, any>
   | ColumnLinked<any, any, any>;
 
-export type FromExpression = Table<any, any>;
+type FromExpression = Table<any, any>;
 
-export enum QueryType {
+enum QueryType {
   SELECT,
   CREATE
 }
@@ -134,7 +164,7 @@ interface Select {
   from: FromExpression;
 }
 
-export enum CreateType {
+enum CreateType {
   TABLE,
   ROLE
 }
@@ -165,21 +195,21 @@ const jsqlCompileSelect = (query: Select) => {
     .map(expression => {
       switch (expression.kind) {
         case ColumnType.ASTERISK:
-          return `"${expression.tableName}".*`;
+          return `${escapeId(expression.tableName)}.*`;
 
         case ColumnType.LINKED:
           const partsOfExpressionToRender = [
-            `"${expression.tableName}"."${expression.columnName}"`
+            escapeId(`${expression.tableName}.${expression.columnName}`)
           ];
           if (expression.aliasName) {
-            partsOfExpressionToRender.push(`"${expression.aliasName}"`);
+            partsOfExpressionToRender.push(escapeId(expression.aliasName));
           }
           return partsOfExpressionToRender.join(' as ');
       }
     })
     .join(', ');
 
-  const fromExpression = query.from ? `FROM "${query.from.$$}"` : '';
+  const fromExpression = query.from ? `FROM ${escapeId(query.from.$$)}` : '';
 
   return [`SELECT ${selectExpression}`, fromExpression]
     .filter(i => i)
@@ -189,20 +219,20 @@ const jsqlCompileSelect = (query: Select) => {
 const jsqlCompileCreate = (query: Create) => {
   switch (query.createType) {
     case CreateType.TABLE:
-      const tableName = `"${query.entity.$$}"`;
+      const tableName = escapeId(query.entity.$$);
       const columnExpressions = [];
       for (const columnName of Object.keys(query.entity)) {
         if (columnName === '*' || columnName === '$' || columnName === '$$') {
           continue;
         }
         const column = query.entity[columnName];
-        const columnExpression = [`"${columnName}"`];
+        const columnExpression = [escapeId(columnName)];
         if (column.columnSettings.type === String) {
           columnExpression.push('text');
         }
         if (column.columnSettings.defaultValue) {
           columnExpression.push(
-            `DEFAULT '${column.columnSettings.defaultValue}'`
+            `DEFAULT ${escape(column.columnSettings.defaultValue)}`
           );
         }
         columnExpressions.push(columnExpression.join(' '));
@@ -210,7 +240,7 @@ const jsqlCompileCreate = (query: Create) => {
       return `CREATE TABLE ${tableName} (${columnExpressions.join(', ')})`;
 
     case CreateType.ROLE:
-      return `CREATE ROLE "${query.entity.roleName}"`;
+      return `CREATE ROLE ${escapeId(query.entity.roleName)}`;
   }
 };
 
