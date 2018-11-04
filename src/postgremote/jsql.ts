@@ -156,7 +156,7 @@ type TableProperties<OfTable> = {
   >
 };
 
-function* extractTableProperties(
+function* extractTableColumns(
   table: Table<any, any>
 ): IterableIterator<ColumnLinked<any, any, any>> {
   for (const columnName of Object.getOwnPropertyNames(table)) {
@@ -271,7 +271,7 @@ const jsqlCompileCreate = (query: Create) => {
     case CreateType.TABLE:
       const tableName = escapeId(query.entity.$$);
       const columnExpressions = [];
-      for (const column of extractTableProperties(query.entity)) {
+      for (const column of extractTableColumns(query.entity)) {
         const columnExpression = [escapeId(column.columnName)];
         if (column.columnSettings.type === String) {
           columnExpression.push('text');
@@ -306,10 +306,19 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
       const placeholders = [];
       let placeholderNumber = 0;
 
-      for (const column of Object.getOwnPropertyNames(query.values)) {
-        columns.push(escapeId(column));
+      const columnNames = Array.from(extractTableColumns(query.into)).map(
+        column => column.columnName
+      );
+
+      for (const key of Object.getOwnPropertyNames(query.values)) {
+        if (!columnNames.includes(key)) {
+          throw new JSQLError(
+            `Table ${query.into.$$} does not have column with name ${key}`
+          );
+        }
+        columns.push(escapeId(key));
         placeholders.push(`$${++placeholderNumber}`);
-        values.push(query.values[column]);
+        values.push(query.values[key]);
       }
 
       return {

@@ -149,5 +149,18 @@ describe(`DSL`, () => {
         values: ['Alexander', 'Yatkevich']
       });
     });
+
+    it(`should throw an error if you try to insert a value
+        for a column that does not exist`, () => {
+      const TestTable = jsql.table('TestTable', [
+        jsql.column('testColumn', { type: String })
+      ]);
+      expect(() => {
+        jsql.insert(TestTable, {
+          // @ts-ignore
+          testColumn2: 'value'
+        }).toQueryObject();
+      }).toThrowError(JSQLError);
+    });
   });
 });

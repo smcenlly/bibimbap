@@ -6,8 +6,8 @@ PostgreMote:
   ☐ implement an SQL-like DSL
     ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON)
     ☐ get rid of sqlstring dependency
-    ☐ implement jsql.insert
-    ☐ check if columns for insert closure were declared in the table
+    ✔ implement jsql.insert @done
+    ✔ check if columns for insert closure were declared in the table @done
     ☐ check if there is at least one value to insert but columns with default values can be skiped
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
