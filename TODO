@@ -2,7 +2,7 @@ PostgreMote:
   ☐ implement an SQL-like DSL
     ✔ implement jsql.role @done
     ✔ implement jsql.create(role) @done
-    ☐ use double $ as a JSQL type definition and double $$ as a table name
+    ✔ use $ as a JSQL type definition and $$ as a table name @done
     ☐ escape string values
     ☐ implement jsql.insert
     ☐ implement jsql.grant

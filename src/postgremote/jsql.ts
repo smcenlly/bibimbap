@@ -16,7 +16,7 @@ enum ColumnType {
   ASTERISK
 }
 type ColumnFree<ColumnName extends string> = {
-  type: JSQLType.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnType.FREE;
   columnName: ColumnName;
   columnSettings: ColumnSettings;
@@ -27,7 +27,7 @@ type ColumnLinked<
   ColumnName extends string,
   AliasName extends string = ''
 > = {
-  type: JSQLType.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnType.LINKED;
   tableName: TableName;
   columnName: ColumnName;
@@ -36,7 +36,7 @@ type ColumnLinked<
 };
 
 type ColumnAsterisk<TableName extends string> = {
-  type: JSQLType.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnType.ASTERISK;
   tableName: TableName;
 };
@@ -46,7 +46,7 @@ function makeColumn<TableName extends string>(
   columnSettings: ColumnSettings
 ): ColumnFree<TableName> {
   return {
-    type: JSQLType.COLUMN,
+    $: JSQLType.COLUMN,
     kind: ColumnType.FREE,
     columnName: columnName,
     columnSettings: columnSettings
@@ -54,8 +54,10 @@ function makeColumn<TableName extends string>(
 }
 
 type Table<TableName extends string, Columns extends ColumnFree<any>> = {
-  type: JSQLType.TABLE;
-  $: TableName;
+  $: JSQLType.TABLE;
+  // table name does not user 'tableName' property to minimize possibility
+  // of name intersection
+  $$: TableName;
   ['*']: ColumnAsterisk<TableName>;
 } & {
   [ColumnName in Columns['columnName']]: ColumnLinked<TableName, ColumnName> & {
@@ -69,19 +71,19 @@ function makeTable<TableName extends string, Column extends ColumnFree<any>>(
   tableName: TableName,
   columns: Column[]
 ): Table<TableName, Column> {
-  const result = { type: JSQLType.TABLE } as Table<TableName, Column>;
+  const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
 
-  result['$'] = tableName;
+  result['$$'] = tableName;
 
   result['*'] = {
-    type: JSQLType.COLUMN,
+    $: JSQLType.COLUMN,
     kind: ColumnType.ASTERISK,
     tableName: tableName
   };
 
   for (const column of columns) {
     const columnLinked: ColumnLinked<TableName, Column['columnName']> = {
-      type: JSQLType.COLUMN,
+      $: JSQLType.COLUMN,
       kind: ColumnType.LINKED,
       tableName: tableName,
       columnName: column.columnName,
@@ -103,13 +105,13 @@ function makeTable<TableName extends string, Column extends ColumnFree<any>>(
 }
 
 type Role<RoleName extends string> = {
-  type: JSQLType.ROLE;
+  $: JSQLType.ROLE;
   roleName: RoleName;
 };
 
 function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
   return {
-    type: JSQLType.ROLE,
+    $: JSQLType.ROLE,
     roleName
   };
 }
@@ -177,7 +179,7 @@ const jsqlCompileSelect = (query: Select) => {
     })
     .join(', ');
 
-  const fromExpression = query.from ? `FROM "${query.from.$}"` : '';
+  const fromExpression = query.from ? `FROM "${query.from.$$}"` : '';
 
   return [`SELECT ${selectExpression}`, fromExpression]
     .filter(i => i)
@@ -187,10 +189,10 @@ const jsqlCompileSelect = (query: Select) => {
 const jsqlCompileCreate = (query: Create) => {
   switch (query.createType) {
     case CreateType.TABLE:
-      const tableName = `"${query.entity.$}"`;
+      const tableName = `"${query.entity.$$}"`;
       const columnExpressions = [];
       for (const columnName of Object.keys(query.entity)) {
-        if (columnName === '*' || columnName === '$' || columnName === 'type') {
+        if (columnName === '*' || columnName === '$' || columnName === '$$') {
           continue;
         }
         const column = query.entity[columnName];
@@ -260,7 +262,7 @@ export namespace jsql {
   export const create = (entity: Table<any, any> | Role<any>) =>
     new class CreateGenerator {
       valueOf(): Create {
-        switch (entity.type) {
+        switch (entity.$) {
           case JSQLType.TABLE:
             return {
               kind: QueryType.CREATE,
