@@ -4,19 +4,14 @@ Security:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON)
-    ☐ get rid of sqlstring dependency
-    ✔ implement jsql.insert @done
-    ✔ check if columns for insert closure were declared in the table @done
     ☐ add type-checking for default values of the column
-    ☐ report strange behavior for conditional types returning
-    ☐ check if there is at least one value to insert
-    ✔ check if columns with default values can be skiped @done
     ☐ check if column names are unique for each table
+    ☐ check if there is at least one value to insert
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)
+    ☐ get rid of sqlstring dependency
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
@@ -27,6 +22,11 @@ Test runner:
   ☐ implement bibimbap's own test runner
 
 Archive:
+  ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON) @project(PostgreMote)
+  ✔ implement jsql.insert @done @project(PostgreMote)
+  ✔ check if columns for insert closure were declared in the table @done @project(PostgreMote)
+  ✔ report strange behavior for conditional types returning @done (unfortunately don't have any willpower to do this) @project(PostgreMote)
+  ✔ check if columns with default values can be skiped @done @project(PostgreMote)
   ✔ implement jsql.role @done @project(PostgreMote)
   ✔ implement jsql.create(role) @done @project(PostgreMote)
   ✔ use $ as a JSQL type definition and $$ as a table name @done @project(PostgreMote)
