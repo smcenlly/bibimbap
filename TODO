@@ -4,7 +4,7 @@ Security:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ☐ use symbols instead of $ and $$
+    ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON)
     ☐ implement jsql.insert
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
