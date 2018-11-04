@@ -1,15 +1,15 @@
+Security:
+  ☐ update merge dependency
+  ☐ test sql injection
+
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ✔ implement jsql.role @done
-    ✔ implement jsql.create(role) @done
-    ✔ use $ as a JSQL type definition and $$ as a table name @done
-    ✔ escape string values @done
+    ☐ use symbols instead of $ and $$
     ☐ implement jsql.insert
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)
-    ☐ test escaping and sql injection prevention
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
@@ -17,5 +17,9 @@ PostgreMote:
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
 
 Archive:
+  ✔ implement jsql.role @done @project(PostgreMote)
+  ✔ implement jsql.create(role) @done @project(PostgreMote)
+  ✔ use $ as a JSQL type definition and $$ as a table name @done @project(PostgreMote)
+  ✔ escape string values @done @project(PostgreMote)
   ✔ configure jest and wallaby @done @project(PostgreMote)
   ✔ jsql should be serializable and jsql DSL feature-rich @done @project(PostgreMote)
