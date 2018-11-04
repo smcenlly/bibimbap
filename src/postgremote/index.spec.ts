@@ -80,7 +80,7 @@ describe('making a query using an API end point', async () => {
         .set('Cookie', `jwt=${testTokenOne}`)
         .send(
           jsql
-            .select('*')
+            .select(TestTable['*'])
             .from(TestTable)
             .valueOf()
         )
@@ -101,9 +101,9 @@ describe('making a query using an API end point', async () => {
         .set('Cookie', `jwt=${testTokenTwo}`)
         .send(
           jsql
-            .select('*')
+            .select(TestTable['*'])
             .from(TestTable)
-            .toPlainObject()
+            .valueOf()
         )
         .expect(403);
     } finally {

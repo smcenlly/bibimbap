@@ -2,15 +2,26 @@ import { jsql, JSQLError } from './jsql';
 
 describe(`DSL`, () => {
   describe(`create table`, () => {
-    const TableName = jsql.table('TableName', [
-      jsql.column('column', {
-        type: String,
-        defaultValue: 'default value'
-      })
-    ]);
-    expect(jsql.create(TableName).toString()).toBe(
-      `CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`
-    );
+    test(`CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', {
+          type: String,
+          defaultValue: 'default value'
+        })
+      ]);
+
+      expect(jsql.create(TableName).toString()).toBe(
+        `CREATE TABLE "TableName" ("column" text DEFAULT 'default value')`
+      );
+    });
+  });
+
+  describe(`create role`, () => {
+    test(`CREATE ROLE "TestRole"`, () => {
+      const TestRole = jsql.role('TestRole');
+
+      expect(jsql.create(TestRole).toString()).toBe(`CREATE ROLE "TestRole"`);
+    });
   });
 
   describe(`select`, () => {

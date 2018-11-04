@@ -1,10 +1,21 @@
 PostgreMote:
-  ✔ configure jest and wallaby @done
-  ☐ implement an SQL-like DSL @started
-    ✔ jsql should be serializable and jsql DSL feature-rich @done
+  ☐ implement an SQL-like DSL
+    ✔ implement jsql.role @done
+    ✔ implement jsql.create(role) @done
+    ☐ use double $ as a JSQL type definition and double $$ as a table name
+    ☐ escape string values
+    ☐ implement jsql.insert
+    ☐ implement jsql.grant
+    ☐ implement jsql.revoke
+    ☐ implement jsql.drop(table)
+    ☐ implement jsql.drop(role)
     ☐ test escaping and sql injection prevention
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
+
+Archive:
+  ✔ configure jest and wallaby @done @project(PostgreMote)
+  ✔ jsql should be serializable and jsql DSL feature-rich @done @project(PostgreMote)
