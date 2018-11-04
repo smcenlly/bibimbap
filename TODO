@@ -8,7 +8,11 @@ PostgreMote:
     ☐ get rid of sqlstring dependency
     ✔ implement jsql.insert @done
     ✔ check if columns for insert closure were declared in the table @done
-    ☐ check if there is at least one value to insert but columns with default values can be skiped
+    ☐ add type-checking for default values of the column
+    ☐ report strange behavior for conditional types returning
+    ☐ check if there is at least one value to insert
+    ✔ check if columns with default values can be skiped @done
+    ☐ check if column names are unique for each table
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)

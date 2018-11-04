@@ -34,10 +34,14 @@ enum JSQLType {
   ROLE
 }
 
-type ColumnSettings<ColumnType extends Function> = {
-  type: ColumnType;
-  defaultValue?: any;
-  notNull?: boolean;
+type ColumnSettings<
+  DataType extends Function,
+  DataDefault,
+  DataNullable extends boolean | undefined
+> = {
+  type: DataType;
+  defaultValue?: DataDefault;
+  nullable?: DataNullable;
 };
 
 enum ColumnType {
@@ -45,17 +49,24 @@ enum ColumnType {
   FREE,
   ASTERISK
 }
-type ColumnFree<ColumnName extends string, ColumnType extends Function> = {
+type ColumnFree<
+  ColumnName extends string,
+  DataType extends Function,
+  DataDefault,
+  DataNullable extends boolean | undefined
+> = {
   $: JSQLType.COLUMN;
   kind: ColumnType.FREE;
   columnName: ColumnName;
-  columnSettings: ColumnSettings<ColumnType>;
+  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>;
 };
 
 type ColumnLinked<
   TableName extends string,
   ColumnName extends string,
-  ColumnType extends Function,
+  DataType extends Function,
+  DataDefault,
+  DataNullable extends boolean | undefined,
   AliasName extends string = ''
 > = {
   $: JSQLType.COLUMN;
@@ -63,7 +74,7 @@ type ColumnLinked<
   tableName: TableName;
   columnName: ColumnName;
   aliasName?: AliasName;
-  columnSettings: ColumnSettings<ColumnType>;
+  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>;
 };
 
 type ColumnAsterisk<TableName extends string> = {
@@ -72,10 +83,15 @@ type ColumnAsterisk<TableName extends string> = {
   tableName: TableName;
 };
 
-function makeColumn<ColumnName extends string, ColumnType extends Function>(
+function makeColumn<
+  ColumnName extends string,
+  DataType extends Function,
+  DataDefault,
+  DataNullable extends boolean | undefined
+>(
   columnName: ColumnName,
-  columnSettings: ColumnSettings<ColumnType>
-): ColumnFree<ColumnName, ColumnType> {
+  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>
+): ColumnFree<ColumnName, DataType, DataDefault, DataNullable> {
   return {
     $: JSQLType.COLUMN,
     kind: ColumnType.FREE,
@@ -84,7 +100,10 @@ function makeColumn<ColumnName extends string, ColumnType extends Function>(
   };
 }
 
-type Table<TableName extends string, Columns extends ColumnFree<any, any>> = {
+type Table<
+  TableName extends string,
+  Columns extends ColumnFree<any, any, any, any>
+> = {
   $: JSQLType.TABLE;
   // table name does not user 'tableName' property to minimize possibility
   // of name intersection
@@ -94,7 +113,9 @@ type Table<TableName extends string, Columns extends ColumnFree<any, any>> = {
   [ColumnName in Columns['columnName']]: ColumnLinked<
     TableName,
     ColumnName,
-    Columns['columnSettings']['type']
+    Columns['columnSettings']['type'],
+    Columns['columnSettings']['defaultValue'],
+    Columns['columnSettings']['nullable']
   > & {
     as<AliasName extends string>(
       aliasName: AliasName
@@ -102,6 +123,8 @@ type Table<TableName extends string, Columns extends ColumnFree<any, any>> = {
       TableName,
       ColumnName,
       Columns['columnSettings']['type'],
+      Columns['columnSettings']['defaultValue'],
+      Columns['columnSettings']['nullable'],
       AliasName
     >;
   }
@@ -109,7 +132,7 @@ type Table<TableName extends string, Columns extends ColumnFree<any, any>> = {
 
 function makeTable<
   TableName extends string,
-  Column extends ColumnFree<any, any>
+  Column extends ColumnFree<any, any, any, any>
 >(tableName: TableName, columns: Column[]): Table<TableName, Column> {
   const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
 
@@ -125,7 +148,9 @@ function makeTable<
     const columnLinked: ColumnLinked<
       TableName,
       Column['columnName'],
-      Column['columnSettings']['type']
+      Column['columnSettings']['type'],
+      Column['columnSettings']['defaultValue'],
+      Column['columnSettings']['nullable']
     > = {
       $: JSQLType.COLUMN,
       kind: ColumnType.LINKED,
@@ -148,17 +173,72 @@ function makeTable<
   return result;
 }
 
-type UnpackedColumn<OfTable> = OfTable extends Table<any, infer U> ? U : never;
+type UnpackedColumns<OfTable> = OfTable extends Table<any, infer Columns>
+  ? Columns
+  : never;
+
+type NullableColumns<
+  UnpackedColumnsOfTable
+> = UnpackedColumnsOfTable extends ColumnFree<any, any, any, true>
+  ? UnpackedColumnsOfTable
+  : never;
+
+type DefaultedColumns<
+  UnpackedColumnsOfTable
+> = UnpackedColumnsOfTable extends ColumnFree<
+  any,
+  any,
+  boolean | string | number,
+  any
+>
+  ? UnpackedColumnsOfTable
+  : never;
+
+type RequiredColumns<
+  AllColumnsOfTable,
+  NonrequiredColumnsOfTable
+> = AllColumnsOfTable extends NonrequiredColumnsOfTable
+  ? never
+  : AllColumnsOfTable;
+
+type NamedUnpackedColumn<
+  ColumnName extends string,
+  UnpackedColumnsOfTable
+> = UnpackedColumnsOfTable extends ColumnFree<ColumnName, any, any, any>
+  ? UnpackedColumnsOfTable
+  : never;
+
+type UnpackedColumnType<
+  OfTable,
+  UnpackedColumnName extends string
+> = ReturnType<
+  NamedUnpackedColumn<
+    UnpackedColumnName,
+    UnpackedColumns<OfTable>
+  >['columnSettings']['type']
+>;
 
 type TableProperties<OfTable> = {
-  [Property in UnpackedColumn<OfTable>['columnName']]: ReturnType<
-    UnpackedColumn<OfTable>['columnSettings']['type']
-  >
-};
+  [UnpackedColumnName in NullableColumns<
+    UnpackedColumns<OfTable>
+  >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
+} &
+  {
+    [UnpackedColumnName in DefaultedColumns<
+      UnpackedColumns<OfTable>
+    >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
+  } &
+  {
+    [UnpackedColumnName in RequiredColumns<
+      UnpackedColumns<OfTable>,
+      | NullableColumns<UnpackedColumns<OfTable>>
+      | DefaultedColumns<UnpackedColumns<OfTable>>
+    >['columnName']]: UnpackedColumnType<OfTable, UnpackedColumnName>
+  };
 
 function* extractTableColumns(
   table: Table<any, any>
-): IterableIterator<ColumnLinked<any, any, any>> {
+): IterableIterator<ColumnLinked<any, any, any, any, any>> {
   for (const columnName of Object.getOwnPropertyNames(table)) {
     if (columnName === '*' || columnName === '$' || columnName === '$$') {
       continue;
@@ -181,8 +261,8 @@ function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
 
 type SelectExpression =
   | ColumnAsterisk<any>
-  | ColumnLinked<any, any, any>
-  | ColumnLinked<any, any, any, any>;
+  | ColumnLinked<any, any, any, any, any>
+  | ColumnLinked<any, any, any, any, any, any>;
 
 type FromExpression = Table<any, any>;
 

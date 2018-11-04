@@ -93,11 +93,11 @@ describe(`DSL`, () => {
       const User = jsql.table('User', [
         jsql.column('firstName', {
           type: String,
-          notNull: true
+          nullable: true
         }),
         jsql.column('lastName', {
           type: String,
-          notNull: true
+          nullable: true
         })
       ]);
 
@@ -156,11 +156,48 @@ describe(`DSL`, () => {
         jsql.column('testColumn', { type: String })
       ]);
       expect(() => {
-        jsql.insert(TestTable, {
-          // @ts-ignore
-          testColumn2: 'value'
-        }).toQueryObject();
+        jsql
+          .insert(TestTable, {
+            // @ts-ignore
+            testColumn2: 'value'
+          })
+          .toQueryObject();
       }).toThrowError(JSQLError);
+    });
+
+    it(`should allow to skip columns that can be null
+        or that have default value`, () => {
+      const TestTable = jsql.table('TestTable', [
+        jsql.column('isNullable', { type: Boolean, nullable: true }),
+        jsql.column('withDefault', { type: Number, defaultValue: 2 }),
+        jsql.column('withDefaultAndNullable', {
+          type: String,
+          defaultValue: 'string',
+          nullable: true
+        }),
+        jsql.column('required', { type: String })
+      ]);
+
+      // this is a typescript test actually
+
+      jsql.insert(TestTable, {
+        required: 'this field is required'
+      });
+      jsql.insert(TestTable, {
+        isNullable: false,
+        required: 'this field is required'
+      });
+      jsql.insert(TestTable, {
+        isNullable: false,
+        withDefault: 20,
+        required: 'this field is required'
+      });
+      jsql.insert(TestTable, {
+        isNullable: false,
+        withDefault: 20,
+        withDefaultAndNullable: 'should work',
+        required: 'this field is required'
+      });
     });
   });
 });
