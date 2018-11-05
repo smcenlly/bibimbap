@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./src",
     "declaration": false,
     "noEmit": true,
     "downlevelIteration": true,

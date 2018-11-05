@@ -2,8 +2,12 @@ Security:
   ☐ update merge dependency
   ☐ test sql injection
 
+Chores:
+  ☐ use tsconfig for typing tests
+
 PostgreMote:
   ☐ implement an SQL-like DSL
+    ✔ use typescript compiler api to test typings @done
     ☐ add type-checking for default values of the column
     ☐ check if column names are unique for each table
     ☐ check if there is at least one value to insert

@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`check typings: src/typing-tests/jsql.ts (14,24) 1`] = `
+"Argument of type '{}' is not assignable to parameter of type 'TableProperties<Table<\\"TestTable\\", ColumnFree<\\"isNullable\\", BooleanConstructor, {}, true> | ColumnFree<\\"withDefault\\", NumberConstructor, number, boolean | undefined> | ColumnFree<\\"withDefaultAndNullable\\", StringConstructor, string, true> | ColumnFree<...>>>'.
+  Type '{}' is not assignable to type '{ required: string; }'.
+    Property 'required' is missing in type '{}'."
+`;
+
+exports[`check typings: src/typing-tests/jsql.ts (16,24) 1`] = `
+"Argument of type '{ isNullable: false; }' is not assignable to parameter of type 'TableProperties<Table<\\"TestTable\\", ColumnFree<\\"isNullable\\", BooleanConstructor, {}, true> | ColumnFree<\\"withDefault\\", NumberConstructor, number, boolean | undefined> | ColumnFree<\\"withDefaultAndNullable\\", StringConstructor, string, true> | ColumnFree<...>>>'.
+  Type '{ isNullable: false; }' is not assignable to type '{ required: string; }'.
+    Property 'required' is missing in type '{ isNullable: false; }'."
+`;
