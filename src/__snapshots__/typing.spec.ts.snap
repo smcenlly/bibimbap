@@ -17,3 +17,9 @@ exports[`check typings: src/typing-tests/jsql.ts 5`] = `
   Type '{ isNullable: false; }' is not assignable to type '{ required: string; }'.
     Property 'required' is missing in type '{ isNullable: false; }'."
 `;
+
+exports[`check typings: src/typing-tests/jsql.ts 6`] = `
+"Argument of type '() => void' is not assignable to parameter of type '((...selectExpressions: SelectExpression[]) => SelectGenerator) | (<Into extends Table<any, any>>(table: Into, values: TableProperties<Into>) => InsertGenerator)'.
+  Type '() => void' is not assignable to type '(...selectExpressions: SelectExpression[]) => SelectGenerator'.
+    Type 'void' is not assignable to type 'SelectGenerator'."
+`;

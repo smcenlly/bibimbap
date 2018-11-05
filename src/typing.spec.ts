@@ -50,7 +50,6 @@ test('check typings', () => {
         `${diagnostic.file.fileName}`
       );
     } else {
-
       expect(message).toMatchSnapshot();
     }
   }

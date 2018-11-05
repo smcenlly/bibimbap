@@ -10,7 +10,7 @@ PostgreMote:
     ✔ use typescript compiler api to test typings @done
     ✔ add type-checking for default values of the column @done
     ✔ check if there is at least one value to insert @done
-    ☐ implement jsql.grant
+    ✔ implement jsql.grant @done
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)

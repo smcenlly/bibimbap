@@ -61,9 +61,13 @@ describe('making a query using an API end point', async () => {
       await client.query(jsql.insert(TestTable, { name: 'Just for a test' }));
 
       // now we grant select permission to the TestRoleOne
-      await client.query(jsql.grant.select.on(TestTable).to(TestRoleOne));
+      await client.query(
+        jsql.grant(jsql.select, { on: TestTable, to: TestRoleOne })
+      );
       // and deny select to the TestRoleTwo
-      await client.query(jsql.revoke.select.on(TestTable).from(TestRoleTwo));
+      await client.query(
+        jsql.revoke(jsql.select, { on: TestTable, from: TestRoleTwo })
+      );
 
       // now we're ready to perform a query to check if our server has
       // an authoriztion middleware

@@ -262,14 +262,15 @@ type SelectExpression =
 
 type FromExpression = Table<any, any>;
 
-enum QueryType {
+enum QueryKind {
   SELECT,
   CREATE,
-  INSERT
+  INSERT,
+  GRANT
 }
 
 interface Select {
-  kind: QueryType.SELECT;
+  kind: QueryKind.SELECT;
   select: SelectExpression[];
   from: FromExpression;
 }
@@ -280,13 +281,13 @@ enum CreateType {
 }
 
 interface CreateTable {
-  kind: QueryType.CREATE;
+  kind: QueryKind.CREATE;
   createType: CreateType.TABLE;
   entity: Table<any, any>;
 }
 
 interface CreateRole {
-  kind: QueryType.CREATE;
+  kind: QueryKind.CREATE;
   createType: CreateType.ROLE;
   entity: Role<any>;
 }
@@ -298,13 +299,27 @@ enum InsertType {
 }
 
 interface InsertValues<Into> {
-  kind: QueryType.INSERT;
+  kind: QueryKind.INSERT;
   insertType: InsertType.VALUES;
   into: Into;
   values: TableProperties<Into>;
 }
 
 type Insert<Into> = InsertValues<Into>;
+
+type Grant<Privelege extends string, On, To> = {
+  kind: QueryKind.GRANT;
+  privelege: Privelege;
+  on: On;
+  to: To;
+};
+
+type QueryObject = {
+  text: string;
+  values: any[];
+};
+
+type Query = Select | Create | Insert<any> | Grant<any, any, any>;
 
 export class JSQLError extends Error {
   constructor(message: string) {
@@ -406,20 +421,44 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
   }
 };
 
-type QueryObject = {
-  text: string;
-  values: any[];
+const jsqlCompileGrant = <
+  Privelege extends string,
+  On extends Table<any, any>,
+  To extends Role<any>
+>(
+  query: Grant<Privelege, On, To>
+) => {
+  let privelege: string;
+  switch (query.privelege) {
+    case 'select':
+    case 'insert':
+      privelege = query.privelege.toUpperCase();
+      break;
+    default:
+      throw new JSQLError(
+        `There is no such a privelege like ${query.privelege}`
+      );
+  }
+
+  return {
+    text: `GRANT ${privelege} ON ${escapeId(query.on.$$)} TO ${escapeId(
+      query.to.roleName
+    )}`,
+    values: []
+  };
 };
 
-export function jsql(query: Select | Create | Insert<any>): QueryObject {
+export function jsql(query: Query): QueryObject {
   if (query) {
     switch (query.kind) {
-      case QueryType.SELECT:
+      case QueryKind.SELECT:
         return jsqlCompileSelect(query);
-      case QueryType.CREATE:
+      case QueryKind.CREATE:
         return jsqlCompileCreate(query);
-      case QueryType.INSERT:
+      case QueryKind.INSERT:
         return jsqlCompileInsert(query);
+      case QueryKind.GRANT:
+        return jsqlCompileGrant(query);
     }
   }
   throw new JSQLError('JSQL cannot build query out of the provided object');
@@ -430,8 +469,16 @@ export namespace jsql {
   export const column = makeColumn;
   export const role = makeRole;
 
-  export const select = (...selectExpressions: SelectExpression[]) =>
-    new class SelectGenerator {
+  export abstract class QueryGenerator<T extends Query> {
+    abstract toJSQL(): T;
+
+    toQueryObject() {
+      return jsql(this.toJSQL());
+    }
+  }
+
+  export function select(...selectExpressions: SelectExpression[]) {
+    return new class SelectGenerator extends QueryGenerator<Select> {
       private fromExpression?: FromExpression;
 
       from(fromExpression: Table<any, any>) {
@@ -447,63 +494,74 @@ export namespace jsql {
         }
 
         return {
-          kind: QueryType.SELECT,
+          kind: QueryKind.SELECT,
           select: selectExpressions,
           from: this.fromExpression
         };
       }
-
-      toQueryObject() {
-        return jsql(this.toJSQL());
-      }
     }();
+  }
 
-  export const create = (entity: Table<any, any> | Role<any>) =>
-    new class CreateGenerator {
+  export function create(entity: Table<any, any> | Role<any>) {
+    return new class CreateGenerator extends QueryGenerator<Create> {
       toJSQL(): Create {
         switch (entity.$) {
           case JSQLType.TABLE:
             return {
-              kind: QueryType.CREATE,
+              kind: QueryKind.CREATE,
               createType: CreateType.TABLE,
               entity
             };
           case JSQLType.ROLE:
             return {
-              kind: QueryType.CREATE,
+              kind: QueryKind.CREATE,
               createType: CreateType.ROLE,
               entity
             };
         }
       }
-
-      toQueryObject() {
-        return jsql(this.toJSQL());
-      }
     }();
+  }
 
-  export const insert = <Into extends Table<any, any>>(
+  export function insert<Into extends Table<any, any>>(
     table: Into,
     values: TableProperties<Into>
-  ) =>
-    new class InsertGenerator {
-      constructor() {
-        if (Object.getOwnPropertyNames(values).length === 0) {
-          throw new JSQLError('You should pass at least one column');
-        }
-      }
-
+  ) {
+    if (Object.getOwnPropertyNames(values).length === 0) {
+      throw new JSQLError('You should pass at least one column');
+    }
+    return new class InsertGenerator extends QueryGenerator<Insert<Into>> {
       toJSQL(): Insert<Into> {
         return {
-          kind: QueryType.INSERT,
+          kind: QueryKind.INSERT,
           insertType: InsertType.VALUES,
           into: table,
           values
         };
       }
+    }();
+  }
 
-      toQueryObject() {
-        return jsql(this.toJSQL());
+  type FunctionName<F extends Function> = F['name'];
+
+  export const grant = <
+    Privelege extends typeof select | typeof insert,
+    On extends Table<any, any>,
+    To extends Role<any>
+  >(
+    privelege: Privelege,
+    rule: { on: On; to: To }
+  ) =>
+    new class GrantGenerator extends QueryGenerator<
+      Grant<FunctionName<Privelege>, On, To>
+    > {
+      toJSQL(): Grant<FunctionName<Privelege>, On, To> {
+        return {
+          kind: QueryKind.GRANT,
+          privelege: privelege.name,
+          on: rule.on,
+          to: rule.to
+        };
       }
     }();
 }

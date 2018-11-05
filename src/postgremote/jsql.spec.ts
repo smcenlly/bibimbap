@@ -174,4 +174,48 @@ describe(`DSL`, () => {
       }).toThrowError(JSQLError);
     });
   });
+
+  describe('grant', () => {
+    test(`GRANT SELECT ON "TableName" to "RoleName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(
+        jsql.grant(jsql.select, { on: TableName, to: RoleName }).toQueryObject()
+      ).toEqual({
+        text: `GRANT SELECT ON "TableName" TO "RoleName"`,
+        values: []
+      });
+    });
+
+    test(`GRANT INSERT ON "TableName" to "RoleName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(
+        jsql.grant(jsql.insert, { on: TableName, to: RoleName }).toQueryObject()
+      ).toEqual({
+        text: `GRANT INSERT ON "TableName" TO "RoleName"`,
+        values: []
+      });
+    });
+
+    it(`should throw an error when there is no such a privelege`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(() => {
+        jsql
+          // @ts-ignore
+          .grant('something else', { on: TableName, to: RoleName })
+          .toQueryObject();
+      }).toThrowError(JSQLError);
+    });
+  });
 });
