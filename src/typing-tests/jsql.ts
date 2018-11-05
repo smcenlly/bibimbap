@@ -18,7 +18,7 @@ jsql.table('TestTable', [
  * Insert tests
  */
 
-const TestTable = jsql.table('TestTable', [
+const TestTable0 = jsql.table('TestTable', [
   jsql.column('isNullable', { type: Boolean, nullable: true }),
   jsql.column('withDefault', {
     type: Number,
@@ -34,32 +34,32 @@ const TestTable = jsql.table('TestTable', [
   jsql.column('required', { type: String })
 ]);
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   // here should be a required column, because it neither have default value
   // nor can have a null as a value
 });
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   // the same, should be required column
   isNullable: false
 });
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   required: 'this field is required'
 });
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   isNullable: false,
   required: 'this field is required'
 });
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   isNullable: false,
   withDefault: 20,
   required: 'this field is required'
 });
 
-jsql.insert(TestTable, {
+jsql.insert(TestTable0, {
   isNullable: false,
   withDefault: 20,
   withDefaultAndNullable: 'should work',

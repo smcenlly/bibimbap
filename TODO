@@ -9,14 +9,14 @@ PostgreMote:
   ☐ implement an SQL-like DSL
     ✔ use typescript compiler api to test typings @done
     ✔ add type-checking for default values of the column @done
-    ☐ check if column names are unique for each table
-    ☐ check if there is at least one value to insert
+    ✔ check if there is at least one value to insert @done
     ☐ implement jsql.grant
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)
     ☐ get rid of sqlstring dependency
     ☐ rename enum from types to kinds
+    ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme

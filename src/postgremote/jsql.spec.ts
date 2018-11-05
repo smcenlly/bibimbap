@@ -164,5 +164,14 @@ describe(`DSL`, () => {
           .toQueryObject();
       }).toThrowError(JSQLError);
     });
+
+    it(`should not allow you to create an insert with no columns`, () => {
+      const TestTable = jsql.table('TestTable', [
+        jsql.column('testColumn', { type: String, nullable: true })
+      ]);
+      expect(() => {
+        jsql.insert(TestTable, {});
+      }).toThrowError(JSQLError);
+    });
   });
 });

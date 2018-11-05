@@ -487,6 +487,12 @@ export namespace jsql {
     values: TableProperties<Into>
   ) =>
     new class InsertGenerator {
+      constructor() {
+        if (Object.getOwnPropertyNames(values).length === 0) {
+          throw new JSQLError('You should pass at least one column');
+        }
+      }
+
       toJSQL(): Insert<Into> {
         return {
           kind: QueryType.INSERT,
