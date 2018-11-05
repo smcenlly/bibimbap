@@ -7,10 +7,6 @@ Chores:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ✔ use typescript compiler api to test typings @done
-    ✔ add type-checking for default values of the column @done
-    ✔ check if there is at least one value to insert @done
-    ✔ implement jsql.grant @done
     ☐ implement jsql.revoke
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)
@@ -27,6 +23,10 @@ Test runner:
   ☐ implement bibimbap's own test runner
 
 Archive:
+  ✔ use typescript compiler api to test typings @done @project(PostgreMote)
+  ✔ add type-checking for default values of the column @done @project(PostgreMote)
+  ✔ check if there is at least one value to insert @done @project(PostgreMote)
+  ✔ implement jsql.grant @done @project(PostgreMote)
   ✔ use symbols instead of $ and $$ @done(symbols cannot be serialized/deserialized using JSON) @project(PostgreMote)
   ✔ implement jsql.insert @done @project(PostgreMote)
   ✔ check if columns for insert closure were declared in the table @done @project(PostgreMote)
