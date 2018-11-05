@@ -35,13 +35,14 @@ enum JSQLType {
 }
 
 type ColumnSettings<
-  DataType extends Function,
-  DataDefault,
+  DataType extends (...args: any[]) => any,
+  DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined
 > = {
   type: DataType;
-  defaultValue?: DataDefault;
+  defaultValue?: ReturnType<DataType>;
   nullable?: DataNullable;
+  defaultable?: DataDefaultable;
 };
 
 enum ColumnType {
@@ -51,21 +52,21 @@ enum ColumnType {
 }
 type ColumnFree<
   ColumnName extends string,
-  DataType extends Function,
-  DataDefault,
+  DataType extends (...args: any[]) => any,
+  DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined
 > = {
   $: JSQLType.COLUMN;
   kind: ColumnType.FREE;
   columnName: ColumnName;
-  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>;
+  columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>;
 };
 
 type ColumnLinked<
   TableName extends string,
   ColumnName extends string,
-  DataType extends Function,
-  DataDefault,
+  DataType extends (...args: any[]) => any,
+  DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined,
   AliasName extends string = ''
 > = {
@@ -74,7 +75,7 @@ type ColumnLinked<
   tableName: TableName;
   columnName: ColumnName;
   aliasName?: AliasName;
-  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>;
+  columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>;
 };
 
 type ColumnAsterisk<TableName extends string> = {
@@ -85,13 +86,13 @@ type ColumnAsterisk<TableName extends string> = {
 
 function makeColumn<
   ColumnName extends string,
-  DataType extends Function,
-  DataDefault,
+  DataType extends (...args: any[]) => any,
+  DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined
 >(
   columnName: ColumnName,
-  columnSettings: ColumnSettings<DataType, DataDefault, DataNullable>
-): ColumnFree<ColumnName, DataType, DataDefault, DataNullable> {
+  columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>
+): ColumnFree<ColumnName, DataType, DataDefaultable, DataNullable> {
   return {
     $: JSQLType.COLUMN,
     kind: ColumnType.FREE,
@@ -183,14 +184,9 @@ type NullableColumns<
   ? UnpackedColumnsOfTable
   : never;
 
-type DefaultedColumns<
+type DefaultableColumns<
   UnpackedColumnsOfTable
-> = UnpackedColumnsOfTable extends ColumnFree<
-  any,
-  any,
-  boolean | string | number,
-  any
->
+> = UnpackedColumnsOfTable extends ColumnFree<any, any, true, any>
   ? UnpackedColumnsOfTable
   : never;
 
@@ -224,7 +220,7 @@ type TableProperties<OfTable> = {
   >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
 } &
   {
-    [UnpackedColumnName in DefaultedColumns<
+    [UnpackedColumnName in DefaultableColumns<
       UnpackedColumns<OfTable>
     >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
   } &
@@ -232,7 +228,7 @@ type TableProperties<OfTable> = {
     [UnpackedColumnName in RequiredColumns<
       UnpackedColumns<OfTable>,
       | NullableColumns<UnpackedColumns<OfTable>>
-      | DefaultedColumns<UnpackedColumns<OfTable>>
+      | DefaultableColumns<UnpackedColumns<OfTable>>
     >['columnName']]: UnpackedColumnType<OfTable, UnpackedColumnName>
   };
 

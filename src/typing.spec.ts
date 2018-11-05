@@ -41,21 +41,17 @@ test('check typings', () => {
     .concat(emitResult.diagnostics);
 
   for (const diagnostic of allDiagnostics) {
+    const message = ts.flattenDiagnosticMessageText(
+      diagnostic.messageText,
+      '\n'
+    );
     if (diagnostic.file) {
-      let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(
-        diagnostic.start!
-      );
-      let message = ts.flattenDiagnosticMessageText(
-        diagnostic.messageText,
-        '\n'
-      );
       expect(message).toMatchSnapshot(
-        `${diagnostic.file.fileName} (${line + 1},${character + 1})`
+        `${diagnostic.file.fileName}`
       );
     } else {
-      expect(
-        ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
-      ).toMatchSnapshot();
+
+      expect(message).toMatchSnapshot();
     }
   }
 });
