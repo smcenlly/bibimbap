@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { app } from './index';
 import { jsql } from './jsql';
 
@@ -23,17 +24,48 @@ describe('making a query using an API end point', async () => {
   });
 
   it('should make a query and return result as JSON', async () => {
-    const { body, error } = await request(app)
-      .post('/')
-      .send({
-        select: 1
-      });
+    const client = await pool.connect();
 
-    expect(error).toBeFalsy();
-    expect(body).toEqual([{ '?column?': 1 }]);
+    const TestTable = jsql.table('TestTable', [
+      jsql.column('name', {
+        type: String,
+        defaultValue: `I'm just a default value for a new table`
+      })
+    ]);
+
+    try {
+      await client.query(jsql.create(TestTable).toQueryObject());
+
+      await client.query(
+        jsql.insert(TestTable, { name: `hey what's up` }).toQueryObject()
+      );
+
+      const { body, error } = await request(app)
+        .post('/')
+        .send(
+          jsql
+            .select(TestTable['*'])
+            .from(TestTable)
+            .toJSQL()
+        );
+
+      expect(error).toBeFalsy();
+      expect(body).toEqual([{ name: `hey what's up` }]);
+    } finally {
+      await client.query(
+        jsql
+          .drop(TestTable)
+          .ifExists()
+          .toQueryObject()
+      );
+      client.release();
+    }
   });
 
   it('should use middleware to verify jwt gathered from cookies', async () => {
+    const secret = 'this is a secret';
+    app.set('secret', secret);
+
     const client = await pool.connect();
 
     // we'll need two roles with different permissions and one table to whcih
@@ -53,29 +85,33 @@ describe('making a query using an API end point', async () => {
 
     try {
       // we create all of the required entities
-      await client.query(jsql.create(TestRoleOne));
-      await client.query(jsql.create(TestRoleTwo));
-      await client.query(jsql.create(TestTable));
+      await client.query(jsql.create(TestRoleOne).toQueryObject());
+      await client.query(jsql.create(TestRoleTwo).toQueryObject());
+      await client.query(jsql.create(TestTable).toQueryObject());
 
       // and insert an entry into the test table
-      await client.query(jsql.insert(TestTable, { name: 'Just for a test' }));
+      await client.query(
+        jsql.insert(TestTable, { name: 'Just for a test' }).toQueryObject()
+      );
 
       // now we grant select permission to the TestRoleOne
       await client.query(
-        jsql.grant(jsql.select, { on: TestTable, to: TestRoleOne })
+        jsql
+          .grant(jsql.select, { on: TestTable, to: TestRoleOne })
+          .toQueryObject()
       );
       // and deny select to the TestRoleTwo
       await client.query(
-        jsql.revoke(jsql.select, { on: TestTable, from: TestRoleTwo })
+        jsql
+          .revoke(jsql.select, { on: TestTable, from: TestRoleTwo })
+          .toQueryObject()
       );
 
       // now we're ready to perform a query to check if our server has
       // an authoriztion middleware
 
       // first of all let's sign a jwt token with a first role
-      const testTokenOne = jwt.sign({ sub: TestRoleOne.name }, cert, {
-        algoritm: 'RS512'
-      });
+      const testTokenOne = jwt.sign({ sub: TestRoleOne.roleName }, secret);
 
       // when we make a request with jwt signed for the first role
       // we should have no any error
@@ -90,14 +126,10 @@ describe('making a query using an API end point', async () => {
         )
         .expect(200);
       // and it should actually return a list of rows as it usually does
-      expect(body.rows).toEqual([
-        { name: `I'm just a default value for a new table` }
-      ]);
+      expect(body).toEqual([{ name: `Just for a test` }]);
 
       // now let's try the test role two
-      const testTokenTwo = jwt.sign({ sub: TestRoleTwo.name }, cert, {
-        algoritm: 'RS512'
-      });
+      const testTokenTwo = jwt.sign({ sub: TestRoleTwo.roleName }, secret);
 
       // and here we get an error
       await request(app)
@@ -112,9 +144,24 @@ describe('making a query using an API end point', async () => {
         .expect(403);
     } finally {
       // cleaning everything up
-      await client.query(jsql.drop(TestTable).ifExists());
-      await client.query(jsql.drop(TestRoleTwo).ifExists());
-      await client.query(jsql.drop(TestRoleOne).ifExists());
+      await client.query(
+        jsql
+          .drop(TestTable)
+          .ifExists()
+          .toQueryObject()
+      );
+      await client.query(
+        jsql
+          .drop(TestRoleTwo)
+          .ifExists()
+          .toQueryObject()
+      );
+      await client.query(
+        jsql
+          .drop(TestRoleOne)
+          .ifExists()
+          .toQueryObject()
+      );
       client.release();
     }
   });

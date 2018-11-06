@@ -16,7 +16,7 @@ PostgreMote:
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
-    ☐ add jwt in cookie based authorization middleware
+    ✔ set role from jwt sub if there is a jwt in cookie @done
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
