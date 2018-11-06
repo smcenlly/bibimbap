@@ -28,7 +28,7 @@ export function escape(string: string): string {
   return `E${SqlString.escape(string).replace(/(\$|\`)/g, '\\$1')}`;
 }
 
-enum JSQLKind {
+enum JSQLType {
   COLUMN,
   TABLE,
   ROLE
@@ -56,7 +56,7 @@ type ColumnFree<
   DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined
 > = {
-  $: JSQLKind.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnKind.FREE;
   columnName: ColumnName;
   columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>;
@@ -70,7 +70,7 @@ type ColumnLinked<
   DataNullable extends boolean | undefined,
   AliasName extends string = ''
 > = {
-  $: JSQLKind.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnKind.LINKED;
   tableName: TableName;
   columnName: ColumnName;
@@ -79,7 +79,7 @@ type ColumnLinked<
 };
 
 type ColumnAsterisk<TableName extends string> = {
-  $: JSQLKind.COLUMN;
+  $: JSQLType.COLUMN;
   kind: ColumnKind.ASTERISK;
   tableName: TableName;
 };
@@ -94,7 +94,7 @@ function makeColumn<
   columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>
 ): ColumnFree<ColumnName, DataType, DataDefaultable, DataNullable> {
   return {
-    $: JSQLKind.COLUMN,
+    $: JSQLType.COLUMN,
     kind: ColumnKind.FREE,
     columnName: columnName,
     columnSettings: columnSettings
@@ -105,7 +105,7 @@ type Table<
   TableName extends string,
   Columns extends ColumnFree<any, any, any, any>
 > = {
-  $: JSQLKind.TABLE;
+  $: JSQLType.TABLE;
   // table name does not user 'tableName' property to minimize possibility
   // of name intersection
   $$: TableName;
@@ -135,12 +135,12 @@ function makeTable<
   TableName extends string,
   Column extends ColumnFree<any, any, any, any>
 >(tableName: TableName, columns: Column[]): Table<TableName, Column> {
-  const result = { $: JSQLKind.TABLE } as Table<TableName, Column>;
+  const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
 
   result['$$'] = tableName;
 
   result['*'] = {
-    $: JSQLKind.COLUMN,
+    $: JSQLType.COLUMN,
     kind: ColumnKind.ASTERISK,
     tableName: tableName
   };
@@ -153,7 +153,7 @@ function makeTable<
       Column['columnSettings']['defaultValue'],
       Column['columnSettings']['nullable']
     > = {
-      $: JSQLKind.COLUMN,
+      $: JSQLType.COLUMN,
       kind: ColumnKind.LINKED,
       tableName: tableName,
       columnName: column.columnName,
@@ -244,13 +244,13 @@ function* extractTableColumns(
 }
 
 type Role<RoleName extends string> = {
-  $: JSQLKind.ROLE;
+  $: JSQLType.ROLE;
   roleName: RoleName;
 };
 
 function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
   return {
-    $: JSQLKind.ROLE,
+    $: JSQLType.ROLE,
     roleName
   };
 }
@@ -262,7 +262,7 @@ type SelectExpression =
 
 type FromExpression = Table<any, any>;
 
-enum QueryKind {
+export enum QueryKind {
   SELECT,
   CREATE,
   INSERT,
@@ -327,7 +327,7 @@ type QueryObject = {
   values: any[];
 };
 
-type Query =
+export type Query =
   | Select
   | Create
   | Insert<any>
@@ -342,6 +342,10 @@ export class JSQLError extends Error {
 }
 
 const jsqlCompileSelect = (query: Select) => {
+  if (!query.from) {
+    throw new JSQLError(`FROM statement is required`);
+  }
+
   const selectExpression = query.select
     .map(expression => {
       switch (expression.kind) {
@@ -360,12 +364,8 @@ const jsqlCompileSelect = (query: Select) => {
     })
     .join(', ');
 
-  const fromExpression = query.from ? `FROM ${escapeId(query.from.$$)}` : '';
-
   return {
-    text: [`SELECT ${selectExpression}`, fromExpression]
-      .filter(i => i)
-      .join(' '),
+    text: `SELECT ${selectExpression} FROM ${escapeId(query.from.$$)}`,
     values: []
   };
 };
@@ -377,14 +377,10 @@ const jsqlCompileCreate = (query: Create) => {
       const columnExpressions = [];
       for (const column of extractTableColumns(query.entity)) {
         const columnExpression = [escapeId(column.columnName)];
-        if (column.columnSettings.type === String) {
-          columnExpression.push('text');
-        }
-        if (column.columnSettings.defaultValue) {
-          columnExpression.push(
-            `DEFAULT ${escape(column.columnSettings.defaultValue)}`
-          );
-        }
+        columnExpression.push('text');
+        columnExpression.push(
+          `DEFAULT ${escape(column.columnSettings.defaultValue)}`
+        );
         columnExpressions.push(columnExpression.join(' '));
       }
       return {
@@ -488,125 +484,123 @@ export function jsql(query: Query): QueryObject {
   throw new JSQLError('JSQL cannot build query out of the provided object');
 }
 
-export namespace jsql {
-  export const table = makeTable;
-  export const column = makeColumn;
-  export const role = makeRole;
+jsql.table = makeTable;
+jsql.column = makeColumn;
+jsql.role = makeRole;
 
-  export abstract class QueryGenerator<T extends Query> {
-    abstract toJSQL(): T;
+abstract class QueryGenerator<T extends Query> {
+  abstract toJSQL(): T;
 
-    toQueryObject() {
-      return jsql(this.toJSQL());
-    }
+  toQueryObject() {
+    return jsql(this.toJSQL());
   }
-
-  export function select(...selectExpressions: SelectExpression[]) {
-    return new class SelectGenerator extends QueryGenerator<Select> {
-      private fromExpression?: FromExpression;
-
-      from(fromExpression: Table<any, any>) {
-        this.fromExpression = fromExpression;
-        return this;
-      }
-
-      toJSQL(): Select {
-        if (!this.fromExpression) {
-          throw new JSQLError(
-            `you should setup from where you want to do select`
-          );
-        }
-
-        return {
-          kind: QueryKind.SELECT,
-          select: selectExpressions,
-          from: this.fromExpression
-        };
-      }
-    }();
-  }
-
-  export function create(entity: Table<any, any> | Role<any>) {
-    return new class CreateGenerator extends QueryGenerator<Create> {
-      toJSQL(): Create {
-        switch (entity.$) {
-          case JSQLKind.TABLE:
-            return {
-              kind: QueryKind.CREATE,
-              createType: CreateKind.TABLE,
-              entity
-            };
-          case JSQLKind.ROLE:
-            return {
-              kind: QueryKind.CREATE,
-              createType: CreateKind.ROLE,
-              entity
-            };
-        }
-      }
-    }();
-  }
-
-  export function insert<Into extends Table<any, any>>(
-    table: Into,
-    values: TableProperties<Into>
-  ) {
-    if (Object.getOwnPropertyNames(values).length === 0) {
-      throw new JSQLError('You should pass at least one column');
-    }
-    return new class InsertGenerator extends QueryGenerator<Insert<Into>> {
-      toJSQL(): Insert<Into> {
-        return {
-          kind: QueryKind.INSERT,
-          insertType: InsertKind.VALUES,
-          into: table,
-          values
-        };
-      }
-    }();
-  }
-
-  type FunctionName<F extends Function> = F['name'];
-
-  export const grant = <
-    Privelege extends typeof select | typeof insert,
-    On extends Table<any, any>,
-    To extends Role<any>
-  >(
-    privelege: Privelege,
-    rule: { on: On; to: To }
-  ) =>
-    new class GrantGenerator extends QueryGenerator<
-      Grant<FunctionName<Privelege>, On, To>
-    > {
-      toJSQL(): Grant<FunctionName<Privelege>, On, To> {
-        return {
-          kind: QueryKind.GRANT,
-          privelege: privelege.name,
-          on: rule.on,
-          to: rule.to
-        };
-      }
-    }();
-
-  export const revoke = <
-    Privelege extends typeof select | typeof insert,
-    On extends Table<any, any>,
-    From extends Role<any>
-  >(
-    privelege: Privelege,
-    rule: { on: On; from: From }
-  ) =>
-    new class RevokeGenerator extends QueryGenerator<
-      Revoke<FunctionName<Privelege>, On, From>
-    > {
-      toJSQL(): Revoke<FunctionName<Privelege>, On, From> {
-        return {
-          kind: QueryKind.REVOKE,
-          privelege: privelege.name,
-          on: rule.on,
-          from: rule.from
-        };
-      }
-    }();
 }
+
+jsql.select = function select(...selectExpressions: SelectExpression[]) {
+  return new class SelectGenerator extends QueryGenerator<Select> {
+    private fromExpression?: FromExpression;
+
+    from(fromExpression: Table<any, any>) {
+      this.fromExpression = fromExpression;
+      return this;
+    }
+
+    toJSQL(): Select {
+      if (!this.fromExpression) {
+        throw new JSQLError(
+          `You should setup from where you want to do select`
+        );
+      }
+
+      return {
+        kind: QueryKind.SELECT,
+        select: selectExpressions,
+        from: this.fromExpression
+      };
+    }
+  }();
+};
+
+jsql.create = function create(entity: Table<any, any> | Role<any>) {
+  return new class CreateGenerator extends QueryGenerator<Create> {
+    toJSQL(): Create {
+      switch (entity.$) {
+        case JSQLType.TABLE:
+          return {
+            kind: QueryKind.CREATE,
+            createType: CreateKind.TABLE,
+            entity
+          };
+        case JSQLType.ROLE:
+          return {
+            kind: QueryKind.CREATE,
+            createType: CreateKind.ROLE,
+            entity
+          };
+      }
+    }
+  }();
+};
+
+jsql.insert = function insert<Into extends Table<any, any>>(
+  table: Into,
+  values: TableProperties<Into>
+) {
+  if (Object.getOwnPropertyNames(values).length === 0) {
+    throw new JSQLError('You should pass at least one column');
+  }
+  return new class InsertGenerator extends QueryGenerator<Insert<Into>> {
+    toJSQL(): Insert<Into> {
+      return {
+        kind: QueryKind.INSERT,
+        insertType: InsertKind.VALUES,
+        into: table,
+        values
+      };
+    }
+  }();
+};
+
+type FunctionName<F extends Function> = F['name'];
+
+jsql.grant = <
+  Privelege extends typeof jsql.select | typeof jsql.insert,
+  On extends Table<any, any>,
+  To extends Role<any>
+>(
+  privelege: Privelege,
+  rule: { on: On; to: To }
+) =>
+  new class GrantGenerator extends QueryGenerator<
+    Grant<FunctionName<Privelege>, On, To>
+  > {
+    toJSQL(): Grant<FunctionName<Privelege>, On, To> {
+      return {
+        kind: QueryKind.GRANT,
+        privelege: privelege.name,
+        on: rule.on,
+        to: rule.to
+      };
+    }
+  }();
+
+jsql.revoke = <
+  Privelege extends typeof jsql.select | typeof jsql.insert,
+  On extends Table<any, any>,
+  From extends Role<any>
+>(
+  privelege: Privelege,
+  rule: { on: On; from: From }
+) =>
+  new class RevokeGenerator extends QueryGenerator<
+    Revoke<FunctionName<Privelege>, On, From>
+  > {
+    toJSQL(): Revoke<FunctionName<Privelege>, On, From> {
+      return {
+        kind: QueryKind.REVOKE,
+        privelege: privelege.name,
+        on: rule.on,
+        from: rule.from
+      };
+    }
+  }();

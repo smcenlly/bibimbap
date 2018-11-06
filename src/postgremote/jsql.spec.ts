@@ -1,4 +1,4 @@
-import { jsql, JSQLError, escape, escapeId } from './jsql';
+import { jsql, JSQLError, escape, escapeId, QueryKind } from './jsql';
 
 describe(`DSL`, () => {
   describe(`escaping`, () => {
@@ -64,7 +64,7 @@ describe(`DSL`, () => {
   });
 
   describe(`select`, () => {
-    it(`should implement JSQLQuery type, otherwiser throw error`, () => {
+    it(`should implement JSQLQuery type, otherwise throw error`, () => {
       expect(() => {
         // @ts-ignore: Statically incorrect argument type
         jsql();
@@ -73,6 +73,32 @@ describe(`DSL`, () => {
       expect(() => {
         // @ts-ignore: Statically incorrect argument type
         jsql({});
+      }).toThrowError(JSQLError);
+    });
+
+    it(`should setup from, otherwise throw error`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', { type: String })
+      ]);
+
+      expect(() => {
+        jsql.select(TableName.column).toJSQL();
+      }).toThrowError(JSQLError);
+    });
+
+    it(`should not allow use select expression without from statement`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', { type: String })
+      ]);
+
+      expect(() => {
+        jsql(
+          // @ts-ignore
+          {
+            kind: QueryKind.SELECT,
+            select: [TableName.column]
+          }
+        );
       }).toThrowError(JSQLError);
     });
 
