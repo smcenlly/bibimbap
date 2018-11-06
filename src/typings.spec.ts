@@ -5,8 +5,8 @@ import ts from 'typescript';
 test('check typings', () => {
   const program = ts.createProgram(
     fs
-      .readdirSync('./src/typing-tests')
-      .map(file => path.join('./src/typing-tests', file)),
+      .readdirSync('./src/typings-tests')
+      .map(file => path.join('./src/typings-tests', file)),
     {
       baseUrl: './src',
       declaration: false,

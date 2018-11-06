@@ -1,40 +1,40 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`check typings: src/typing-tests/jsql.ts 1`] = `"Type 'true' is not assignable to type 'string | undefined'."`;
+exports[`check typings: src/typings-tests/jsql.ts 1`] = `"Type 'true' is not assignable to type 'string | undefined'."`;
 
-exports[`check typings: src/typing-tests/jsql.ts 2`] = `"Type 'string' is not assignable to type 'number | undefined'."`;
+exports[`check typings: src/typings-tests/jsql.ts 2`] = `"Type 'string' is not assignable to type 'number | undefined'."`;
 
-exports[`check typings: src/typing-tests/jsql.ts 3`] = `"Type 'number' is not assignable to type 'boolean | undefined'."`;
+exports[`check typings: src/typings-tests/jsql.ts 3`] = `"Type 'number' is not assignable to type 'boolean | undefined'."`;
 
-exports[`check typings: src/typing-tests/jsql.ts 4`] = `
+exports[`check typings: src/typings-tests/jsql.ts 4`] = `
 "Argument of type '{}' is not assignable to parameter of type 'TableProperties<Table<\\"TestTable\\", ColumnFree<\\"isNullable\\", BooleanConstructor, boolean | undefined, true> | ColumnFree<\\"withDefault\\", NumberConstructor, true, boolean | undefined> | ColumnFree<...> | ColumnFree<...>>>'.
   Type '{}' is not assignable to type '{ required: string; }'.
     Property 'required' is missing in type '{}'."
 `;
 
-exports[`check typings: src/typing-tests/jsql.ts 5`] = `
+exports[`check typings: src/typings-tests/jsql.ts 5`] = `
 "Argument of type '{ isNullable: false; }' is not assignable to parameter of type 'TableProperties<Table<\\"TestTable\\", ColumnFree<\\"isNullable\\", BooleanConstructor, boolean | undefined, true> | ColumnFree<\\"withDefault\\", NumberConstructor, true, boolean | undefined> | ColumnFree<...> | ColumnFree<...>>>'.
   Type '{ isNullable: false; }' is not assignable to type '{ required: string; }'.
     Property 'required' is missing in type '{ isNullable: false; }'."
 `;
 
-exports[`check typings: src/typing-tests/jsql.ts 6`] = `
+exports[`check typings: src/typings-tests/jsql.ts 6`] = `
 "Argument of type '{ on: Table<\\"TableName\\", ColumnFree<\\"columnName\\", StringConstructor, boolean | undefined, boolean | undefined>>; from: Role<\\"RoleName\\">; }' is not assignable to parameter of type '{ on: Table<any, any>; to: Role<any>; }'.
   Object literal may only specify known properties, and 'from' does not exist in type '{ on: Table<any, any>; to: Role<any>; }'."
 `;
 
-exports[`check typings: src/typing-tests/jsql.ts 7`] = `
+exports[`check typings: src/typings-tests/jsql.ts 7`] = `
 "Argument of type '{ on: Table<\\"TableName\\", ColumnFree<\\"columnName\\", StringConstructor, boolean | undefined, boolean | undefined>>; to: Role<\\"RoleName\\">; }' is not assignable to parameter of type '{ on: Table<any, any>; from: Role<any>; }'.
   Object literal may only specify known properties, and 'to' does not exist in type '{ on: Table<any, any>; from: Role<any>; }'."
 `;
 
-exports[`check typings: src/typing-tests/jsql.ts 8`] = `
+exports[`check typings: src/typings-tests/jsql.ts 8`] = `
 "Argument of type '() => void' is not assignable to parameter of type '((...selectExpressions: SelectExpression[]) => SelectGenerator) | (<Into extends Table<any, any>>(table: Into, values: TableProperties<Into>) => InsertGenerator)'.
   Type '() => void' is not assignable to type '(...selectExpressions: SelectExpression[]) => SelectGenerator'.
     Type 'void' is not assignable to type 'SelectGenerator'."
 `;
 
-exports[`check typings: src/typing-tests/jsql.ts 9`] = `
+exports[`check typings: src/typings-tests/jsql.ts 9`] = `
 "Argument of type '() => void' is not assignable to parameter of type '((...selectExpressions: SelectExpression[]) => SelectGenerator) | (<Into extends Table<any, any>>(table: Into, values: TableProperties<Into>) => InsertGenerator)'.
   Type '() => void' is not assignable to type '(...selectExpressions: SelectExpression[]) => SelectGenerator'.
     Type 'void' is not assignable to type 'SelectGenerator'."

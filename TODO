@@ -12,7 +12,7 @@ PostgreMote:
     ☐ implement jsql.drop(role)
     ☐ get rid of sqlstring dependency
     ✔ rename enum from types to kinds @done
-    ☐ rename typing file name and dir to typings
+    ✔ rename typing file name and dir to typings @done
     ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ add jwt in cookie based authorization middleware
