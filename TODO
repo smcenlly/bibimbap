@@ -3,16 +3,23 @@ Security:
   ☐ test sql injection
 
 Chores:
-  ☐ use tsconfig for typing tests
+  ☐ use tsconfig for typings tests
 
 PostgreMote:
   ☐ implement an SQL-like DSL
+    ☐ improve jsql with runtime guards
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
+    ☐ pack the whole server as an express middleware
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
+  ☐ implement postgresql code coverage tool
+  ☐ implement database management interface that simplifies working with migrations and code coverage
+
+DesignPad:
+  ☐ implement storybook-like tool but with ability to render more than one story at a time and with a builtin visual regression testing
 
 Test runner:
   ☐ implement bibimbap's own test runner
