@@ -28,7 +28,7 @@ export function escape(string: string): string {
   return `E${SqlString.escape(string).replace(/(\$|\`)/g, '\\$1')}`;
 }
 
-enum JSQLType {
+enum JSQLKind {
   COLUMN,
   TABLE,
   ROLE
@@ -45,7 +45,7 @@ type ColumnSettings<
   defaultable?: DataDefaultable;
 };
 
-enum ColumnType {
+enum ColumnKind {
   LINKED,
   FREE,
   ASTERISK
@@ -56,8 +56,8 @@ type ColumnFree<
   DataDefaultable extends boolean | undefined,
   DataNullable extends boolean | undefined
 > = {
-  $: JSQLType.COLUMN;
-  kind: ColumnType.FREE;
+  $: JSQLKind.COLUMN;
+  kind: ColumnKind.FREE;
   columnName: ColumnName;
   columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>;
 };
@@ -70,8 +70,8 @@ type ColumnLinked<
   DataNullable extends boolean | undefined,
   AliasName extends string = ''
 > = {
-  $: JSQLType.COLUMN;
-  kind: ColumnType.LINKED;
+  $: JSQLKind.COLUMN;
+  kind: ColumnKind.LINKED;
   tableName: TableName;
   columnName: ColumnName;
   aliasName?: AliasName;
@@ -79,8 +79,8 @@ type ColumnLinked<
 };
 
 type ColumnAsterisk<TableName extends string> = {
-  $: JSQLType.COLUMN;
-  kind: ColumnType.ASTERISK;
+  $: JSQLKind.COLUMN;
+  kind: ColumnKind.ASTERISK;
   tableName: TableName;
 };
 
@@ -94,8 +94,8 @@ function makeColumn<
   columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>
 ): ColumnFree<ColumnName, DataType, DataDefaultable, DataNullable> {
   return {
-    $: JSQLType.COLUMN,
-    kind: ColumnType.FREE,
+    $: JSQLKind.COLUMN,
+    kind: ColumnKind.FREE,
     columnName: columnName,
     columnSettings: columnSettings
   };
@@ -105,7 +105,7 @@ type Table<
   TableName extends string,
   Columns extends ColumnFree<any, any, any, any>
 > = {
-  $: JSQLType.TABLE;
+  $: JSQLKind.TABLE;
   // table name does not user 'tableName' property to minimize possibility
   // of name intersection
   $$: TableName;
@@ -135,13 +135,13 @@ function makeTable<
   TableName extends string,
   Column extends ColumnFree<any, any, any, any>
 >(tableName: TableName, columns: Column[]): Table<TableName, Column> {
-  const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
+  const result = { $: JSQLKind.TABLE } as Table<TableName, Column>;
 
   result['$$'] = tableName;
 
   result['*'] = {
-    $: JSQLType.COLUMN,
-    kind: ColumnType.ASTERISK,
+    $: JSQLKind.COLUMN,
+    kind: ColumnKind.ASTERISK,
     tableName: tableName
   };
 
@@ -153,8 +153,8 @@ function makeTable<
       Column['columnSettings']['defaultValue'],
       Column['columnSettings']['nullable']
     > = {
-      $: JSQLType.COLUMN,
-      kind: ColumnType.LINKED,
+      $: JSQLKind.COLUMN,
+      kind: ColumnKind.LINKED,
       tableName: tableName,
       columnName: column.columnName,
       columnSettings: column.columnSettings
@@ -244,13 +244,13 @@ function* extractTableColumns(
 }
 
 type Role<RoleName extends string> = {
-  $: JSQLType.ROLE;
+  $: JSQLKind.ROLE;
   roleName: RoleName;
 };
 
 function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
   return {
-    $: JSQLType.ROLE,
+    $: JSQLKind.ROLE,
     roleName
   };
 }
@@ -276,32 +276,32 @@ interface Select {
   from: FromExpression;
 }
 
-enum CreateType {
+enum CreateKind {
   TABLE,
   ROLE
 }
 
 interface CreateTable {
   kind: QueryKind.CREATE;
-  createType: CreateType.TABLE;
+  createType: CreateKind.TABLE;
   entity: Table<any, any>;
 }
 
 interface CreateRole {
   kind: QueryKind.CREATE;
-  createType: CreateType.ROLE;
+  createType: CreateKind.ROLE;
   entity: Role<any>;
 }
 
 type Create = CreateTable | CreateRole;
 
-enum InsertType {
+enum InsertKind {
   VALUES
 }
 
 interface InsertValues<Into> {
   kind: QueryKind.INSERT;
-  insertType: InsertType.VALUES;
+  insertType: InsertKind.VALUES;
   into: Into;
   values: TableProperties<Into>;
 }
@@ -345,10 +345,10 @@ const jsqlCompileSelect = (query: Select) => {
   const selectExpression = query.select
     .map(expression => {
       switch (expression.kind) {
-        case ColumnType.ASTERISK:
+        case ColumnKind.ASTERISK:
           return `${escapeId(expression.tableName)}.*`;
 
-        case ColumnType.LINKED:
+        case ColumnKind.LINKED:
           const partsOfExpressionToRender = [
             escapeId(`${expression.tableName}.${expression.columnName}`)
           ];
@@ -372,7 +372,7 @@ const jsqlCompileSelect = (query: Select) => {
 
 const jsqlCompileCreate = (query: Create) => {
   switch (query.createType) {
-    case CreateType.TABLE:
+    case CreateKind.TABLE:
       const tableName = escapeId(query.entity.$$);
       const columnExpressions = [];
       for (const column of extractTableColumns(query.entity)) {
@@ -392,7 +392,7 @@ const jsqlCompileCreate = (query: Create) => {
         values: []
       };
 
-    case CreateType.ROLE:
+    case CreateKind.ROLE:
       return {
         text: `CREATE ROLE ${escapeId(query.entity.roleName)}`,
         values: []
@@ -404,7 +404,7 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
   query: Insert<Into>
 ) => {
   switch (query.insertType) {
-    case InsertType.VALUES:
+    case InsertKind.VALUES:
       const columns = [];
       const values = [];
       const placeholders = [];
@@ -530,16 +530,16 @@ export namespace jsql {
     return new class CreateGenerator extends QueryGenerator<Create> {
       toJSQL(): Create {
         switch (entity.$) {
-          case JSQLType.TABLE:
+          case JSQLKind.TABLE:
             return {
               kind: QueryKind.CREATE,
-              createType: CreateType.TABLE,
+              createType: CreateKind.TABLE,
               entity
             };
-          case JSQLType.ROLE:
+          case JSQLKind.ROLE:
             return {
               kind: QueryKind.CREATE,
-              createType: CreateType.ROLE,
+              createType: CreateKind.ROLE,
               entity
             };
         }
@@ -558,7 +558,7 @@ export namespace jsql {
       toJSQL(): Insert<Into> {
         return {
           kind: QueryKind.INSERT,
-          insertType: InsertType.VALUES,
+          insertType: InsertKind.VALUES,
           into: table,
           values
         };
