@@ -7,16 +7,9 @@ Chores:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ✔ implement jsql.revoke @done
-    ✔ implement jsql.drop(table) @done
-    ✔ implement jsql.drop(role) @done
-    ✔ add ifExists to jsql.drop table and role @done
-    ✔ rename enum from types to kinds @done
-    ✔ rename typing file name and dir to typings @done
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
-    ✔ set role from jwt sub if there is a jwt in cookie @done
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
@@ -25,6 +18,13 @@ Test runner:
   ☐ implement bibimbap's own test runner
 
 Archive:
+  ✔ implement jsql.revoke @done @project(PostgreMote)
+  ✔ implement jsql.drop(table) @done @project(PostgreMote)
+  ✔ implement jsql.drop(role) @done @project(PostgreMote)
+  ✔ add ifExists to jsql.drop table and role @done @project(PostgreMote)
+  ✔ rename enum from types to kinds @done @project(PostgreMote)
+  ✔ rename typing file name and dir to typings @done @project(PostgreMote)
+  ✔ set role from jwt sub if there is a jwt in cookie @done @project(PostgreMote)
   ✔ use typescript compiler api to test typings @done @project(PostgreMote)
   ✔ add type-checking for default values of the column @done @project(PostgreMote)
   ✔ check if there is at least one value to insert @done @project(PostgreMote)
