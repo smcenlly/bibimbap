@@ -299,12 +299,14 @@ interface DropTable {
   kind: QueryKind.DROP;
   dropKind: DropKind.TABLE;
   entity: Table<any, any>;
+  ifExists?: boolean;
 }
 
 interface DropRole {
   kind: QueryKind.DROP;
   dropKind: DropKind.ROLE;
   entity: Role<any>;
+  ifExists?: boolean;
 }
 
 type Drop = DropTable | DropRole;
@@ -389,19 +391,16 @@ const jsqlCompileCreate = (query: Create) => {
 };
 
 const jsqlCompileDrop = (query: Drop) => {
-  switch (query.dropKind) {
-    case DropKind.TABLE:
-      return {
-        text: `DROP TABLE ${escapeId(query.entity.$$)}`,
-        values: []
-      };
+  const dropKind = query.dropKind === DropKind.TABLE ? 'TABLE' : 'ROLE';
+  const entityName =
+    query.dropKind === DropKind.TABLE ? query.entity.$$ : query.entity.roleName;
 
-    case DropKind.ROLE:
-      return {
-        text: `DROP ROLE ${escapeId(query.entity.roleName)}`,
-        values: []
-      };
-  }
+  const ifExists = query.ifExists !== undefined ? ' IF EXISTS' : '';
+
+  return {
+    text: `DROP ${dropKind}${ifExists} ${escapeId(entityName)}`,
+    values: []
+  };
 };
 
 const jsqlCompileSelect = (query: Select) => {
@@ -557,19 +556,28 @@ jsql.create = (entity: Table<any, any> | Role<any>) =>
 
 jsql.drop = (entity: Table<any, any> | Role<any>) =>
   new class DropGenerator extends QueryGenerator<Drop> {
+    private _ifExists?: boolean;
+
+    ifExists() {
+      this._ifExists = true;
+      return this;
+    }
+
     toJSQL(): Drop {
       switch (entity.$) {
         case JSQLType.TABLE:
           return {
             kind: QueryKind.DROP,
             dropKind: DropKind.TABLE,
-            entity
+            entity,
+            ifExists: this._ifExists
           };
         case JSQLType.ROLE:
           return {
             kind: QueryKind.DROP,
             dropKind: DropKind.ROLE,
-            entity
+            entity,
+            ifExists: this._ifExists
           };
       }
     }

@@ -77,6 +77,20 @@ describe(`DSL`, () => {
         values: []
       });
     });
+
+    test(`DROP TABLE IF EXISTS "TableName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', {
+          type: String,
+          defaultValue: 'default value'
+        })
+      ]);
+
+      expect(jsql.drop(TableName).ifExists().toQueryObject()).toEqual({
+        text: `DROP TABLE IF EXISTS "TableName"`,
+        values: []
+      });
+    });
   });
 
   describe(`drop role`, () => {
@@ -85,6 +99,15 @@ describe(`DSL`, () => {
 
       expect(jsql.drop(TestRole).toQueryObject()).toEqual({
         text: `DROP ROLE "TestRole"`,
+        values: []
+      });
+    });
+
+    test(`DROP ROLE IF EXISTS "TestRole"`, () => {
+      const TestRole = jsql.role('TestRole');
+
+      expect(jsql.drop(TestRole).ifExists().toQueryObject()).toEqual({
+        text: `DROP ROLE IF EXISTS "TestRole"`,
         values: []
       });
     });

@@ -10,6 +10,7 @@ PostgreMote:
     ✔ implement jsql.revoke @done
     ✔ implement jsql.drop(table) @done
     ✔ implement jsql.drop(role) @done
+    ✔ add ifExists to jsql.drop table and role @done
     ✔ rename enum from types to kinds @done
     ✔ rename typing file name and dir to typings @done
     ☐ get rid of sqlstring dependency
