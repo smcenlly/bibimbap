@@ -263,17 +263,12 @@ type SelectExpression =
 type FromExpression = Table<any, any>;
 
 export enum QueryKind {
-  SELECT,
   CREATE,
+  DROP,
+  SELECT,
   INSERT,
   GRANT,
   REVOKE
-}
-
-interface Select {
-  kind: QueryKind.SELECT;
-  select: SelectExpression[];
-  from: FromExpression;
 }
 
 enum CreateKind {
@@ -283,17 +278,42 @@ enum CreateKind {
 
 interface CreateTable {
   kind: QueryKind.CREATE;
-  createType: CreateKind.TABLE;
+  createKind: CreateKind.TABLE;
   entity: Table<any, any>;
 }
 
 interface CreateRole {
   kind: QueryKind.CREATE;
-  createType: CreateKind.ROLE;
+  createKind: CreateKind.ROLE;
   entity: Role<any>;
 }
 
 type Create = CreateTable | CreateRole;
+
+enum DropKind {
+  TABLE,
+  ROLE
+}
+
+interface DropTable {
+  kind: QueryKind.DROP;
+  dropKind: DropKind.TABLE;
+  entity: Table<any, any>;
+}
+
+interface DropRole {
+  kind: QueryKind.DROP;
+  dropKind: DropKind.ROLE;
+  entity: Role<any>;
+}
+
+type Drop = DropTable | DropRole;
+
+interface Select {
+  kind: QueryKind.SELECT;
+  select: SelectExpression[];
+  from: FromExpression;
+}
 
 enum InsertKind {
   VALUES
@@ -330,6 +350,7 @@ type QueryObject = {
 export type Query =
   | Select
   | Create
+  | Drop
   | Insert<any>
   | Grant<any, any, any>
   | Revoke<any, any, any>;
@@ -340,6 +361,48 @@ export class JSQLError extends Error {
     Object.setPrototypeOf(this, JSQLError.prototype);
   }
 }
+
+const jsqlCompileCreate = (query: Create) => {
+  switch (query.createKind) {
+    case CreateKind.TABLE:
+      const tableName = escapeId(query.entity.$$);
+      const columnExpressions = [];
+      for (const column of extractTableColumns(query.entity)) {
+        const columnExpression = [escapeId(column.columnName)];
+        columnExpression.push('text');
+        columnExpression.push(
+          `DEFAULT ${escape(column.columnSettings.defaultValue)}`
+        );
+        columnExpressions.push(columnExpression.join(' '));
+      }
+      return {
+        text: `CREATE TABLE ${tableName} (${columnExpressions.join(', ')})`,
+        values: []
+      };
+
+    case CreateKind.ROLE:
+      return {
+        text: `CREATE ROLE ${escapeId(query.entity.roleName)}`,
+        values: []
+      };
+  }
+};
+
+const jsqlCompileDrop = (query: Drop) => {
+  switch (query.dropKind) {
+    case DropKind.TABLE:
+      return {
+        text: `DROP TABLE ${escapeId(query.entity.$$)}`,
+        values: []
+      };
+
+    case DropKind.ROLE:
+      return {
+        text: `DROP ROLE ${escapeId(query.entity.roleName)}`,
+        values: []
+      };
+  }
+};
 
 const jsqlCompileSelect = (query: Select) => {
   if (!query.from) {
@@ -368,32 +431,6 @@ const jsqlCompileSelect = (query: Select) => {
     text: `SELECT ${selectExpression} FROM ${escapeId(query.from.$$)}`,
     values: []
   };
-};
-
-const jsqlCompileCreate = (query: Create) => {
-  switch (query.createType) {
-    case CreateKind.TABLE:
-      const tableName = escapeId(query.entity.$$);
-      const columnExpressions = [];
-      for (const column of extractTableColumns(query.entity)) {
-        const columnExpression = [escapeId(column.columnName)];
-        columnExpression.push('text');
-        columnExpression.push(
-          `DEFAULT ${escape(column.columnSettings.defaultValue)}`
-        );
-        columnExpressions.push(columnExpression.join(' '));
-      }
-      return {
-        text: `CREATE TABLE ${tableName} (${columnExpressions.join(', ')})`,
-        values: []
-      };
-
-    case CreateKind.ROLE:
-      return {
-        text: `CREATE ROLE ${escapeId(query.entity.roleName)}`,
-        values: []
-      };
-  }
 };
 
 const jsqlCompileInsert = <Into extends Table<any, any>>(
@@ -474,6 +511,8 @@ export function jsql(query: Query): QueryObject {
         return jsqlCompileSelect(query);
       case QueryKind.CREATE:
         return jsqlCompileCreate(query);
+      case QueryKind.DROP:
+        return jsqlCompileDrop(query);
       case QueryKind.INSERT:
         return jsqlCompileInsert(query);
       case QueryKind.GRANT:
@@ -496,6 +535,46 @@ abstract class QueryGenerator<T extends Query> {
   }
 }
 
+jsql.create = (entity: Table<any, any> | Role<any>) =>
+  new class CreateGenerator extends QueryGenerator<Create> {
+    toJSQL(): Create {
+      switch (entity.$) {
+        case JSQLType.TABLE:
+          return {
+            kind: QueryKind.CREATE,
+            createKind: CreateKind.TABLE,
+            entity
+          };
+        case JSQLType.ROLE:
+          return {
+            kind: QueryKind.CREATE,
+            createKind: CreateKind.ROLE,
+            entity
+          };
+      }
+    }
+  }();
+
+jsql.drop = (entity: Table<any, any> | Role<any>) =>
+  new class DropGenerator extends QueryGenerator<Drop> {
+    toJSQL(): Drop {
+      switch (entity.$) {
+        case JSQLType.TABLE:
+          return {
+            kind: QueryKind.DROP,
+            dropKind: DropKind.TABLE,
+            entity
+          };
+        case JSQLType.ROLE:
+          return {
+            kind: QueryKind.DROP,
+            dropKind: DropKind.ROLE,
+            entity
+          };
+      }
+    }
+  }();
+
 jsql.select = function select(...selectExpressions: SelectExpression[]) {
   return new class SelectGenerator extends QueryGenerator<Select> {
     private fromExpression?: FromExpression;
@@ -517,27 +596,6 @@ jsql.select = function select(...selectExpressions: SelectExpression[]) {
         select: selectExpressions,
         from: this.fromExpression
       };
-    }
-  }();
-};
-
-jsql.create = function create(entity: Table<any, any> | Role<any>) {
-  return new class CreateGenerator extends QueryGenerator<Create> {
-    toJSQL(): Create {
-      switch (entity.$) {
-        case JSQLType.TABLE:
-          return {
-            kind: QueryKind.CREATE,
-            createType: CreateKind.TABLE,
-            entity
-          };
-        case JSQLType.ROLE:
-          return {
-            kind: QueryKind.CREATE,
-            createType: CreateKind.ROLE,
-            entity
-          };
-      }
     }
   }();
 };

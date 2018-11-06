@@ -63,6 +63,33 @@ describe(`DSL`, () => {
     });
   });
 
+  describe(`drop table`, () => {
+    test(`DROP TABLE "TableName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('column', {
+          type: String,
+          defaultValue: 'default value'
+        })
+      ]);
+
+      expect(jsql.drop(TableName).toQueryObject()).toEqual({
+        text: `DROP TABLE "TableName"`,
+        values: []
+      });
+    });
+  });
+
+  describe(`drop role`, () => {
+    test(`DROP ROLE "TestRole"`, () => {
+      const TestRole = jsql.role('TestRole');
+
+      expect(jsql.drop(TestRole).toQueryObject()).toEqual({
+        text: `DROP ROLE "TestRole"`,
+        values: []
+      });
+    });
+  });
+
   describe(`select`, () => {
     it(`should implement JSQLQuery type, otherwise throw error`, () => {
       expect(() => {
