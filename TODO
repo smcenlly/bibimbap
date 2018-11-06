@@ -7,7 +7,7 @@ Chores:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ☐ implement jsql.revoke
+    ✔ implement jsql.revoke @done
     ☐ implement jsql.drop(table)
     ☐ implement jsql.drop(role)
     ☐ get rid of sqlstring dependency

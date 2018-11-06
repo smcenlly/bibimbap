@@ -176,7 +176,7 @@ describe(`DSL`, () => {
   });
 
   describe('grant', () => {
-    test(`GRANT SELECT ON "TableName" to "RoleName"`, () => {
+    test(`GRANT SELECT ON "TableName" TO "RoleName"`, () => {
       const TableName = jsql.table('TableName', [
         jsql.column('columnName', { type: String })
       ]);
@@ -190,7 +190,7 @@ describe(`DSL`, () => {
       });
     });
 
-    test(`GRANT INSERT ON "TableName" to "RoleName"`, () => {
+    test(`GRANT INSERT ON "TableName" TO "RoleName"`, () => {
       const TableName = jsql.table('TableName', [
         jsql.column('columnName', { type: String })
       ]);
@@ -214,6 +214,54 @@ describe(`DSL`, () => {
         jsql
           // @ts-ignore
           .grant('something else', { on: TableName, to: RoleName })
+          .toQueryObject();
+      }).toThrowError(JSQLError);
+    });
+  });
+
+  describe('revoke', () => {
+    test(`REVOKE SELECT ON "TableName" FROM "RoleName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(
+        jsql
+          .revoke(jsql.select, { on: TableName, from: RoleName })
+          .toQueryObject()
+      ).toEqual({
+        text: `REVOKE SELECT ON "TableName" FROM "RoleName"`,
+        values: []
+      });
+    });
+
+    test(`REVOKE INSERT ON "TableName" FROM "RoleName"`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(
+        jsql
+          .revoke(jsql.insert, { on: TableName, from: RoleName })
+          .toQueryObject()
+      ).toEqual({
+        text: `REVOKE INSERT ON "TableName" FROM "RoleName"`,
+        values: []
+      });
+    });
+
+    it(`should throw an error when there is no such a privelege`, () => {
+      const TableName = jsql.table('TableName', [
+        jsql.column('columnName', { type: String })
+      ]);
+      const RoleName = jsql.role('RoleName');
+
+      expect(() => {
+        jsql
+          // @ts-ignore
+          .revoke('something else', { on: TableName, from: RoleName })
           .toQueryObject();
       }).toThrowError(JSQLError);
     });

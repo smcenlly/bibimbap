@@ -266,7 +266,8 @@ enum QueryKind {
   SELECT,
   CREATE,
   INSERT,
-  GRANT
+  GRANT,
+  REVOKE
 }
 
 interface Select {
@@ -314,12 +315,24 @@ type Grant<Privelege extends string, On, To> = {
   to: To;
 };
 
+type Revoke<Privelege extends string, On, From> = {
+  kind: QueryKind.REVOKE;
+  privelege: Privelege;
+  on: On;
+  from: From;
+};
+
 type QueryObject = {
   text: string;
   values: any[];
 };
 
-type Query = Select | Create | Insert<any> | Grant<any, any, any>;
+type Query =
+  | Select
+  | Create
+  | Insert<any>
+  | Grant<any, any, any>
+  | Revoke<any, any, any>;
 
 export class JSQLError extends Error {
   constructor(message: string) {
@@ -421,12 +434,12 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
   }
 };
 
-const jsqlCompileGrant = <
+const jsqlCompileGrantRevoke = <
   Privelege extends string,
   On extends Table<any, any>,
-  To extends Role<any>
+  Subject extends Role<any>
 >(
-  query: Grant<Privelege, On, To>
+  query: Grant<Privelege, On, Subject> | Revoke<Privelege, On, Subject>
 ) => {
   let privelege: string;
   switch (query.privelege) {
@@ -440,12 +453,22 @@ const jsqlCompileGrant = <
       );
   }
 
-  return {
-    text: `GRANT ${privelege} ON ${escapeId(query.on.$$)} TO ${escapeId(
-      query.to.roleName
-    )}`,
-    values: []
-  };
+  switch (query.kind) {
+    case QueryKind.GRANT:
+      return {
+        text: `GRANT ${privelege} ON ${escapeId(query.on.$$)} TO ${escapeId(
+          query.to.roleName
+        )}`,
+        values: []
+      };
+    case QueryKind.REVOKE:
+      return {
+        text: `REVOKE ${privelege} ON ${escapeId(query.on.$$)} FROM ${escapeId(
+          query.from.roleName
+        )}`,
+        values: []
+      };
+  }
 };
 
 export function jsql(query: Query): QueryObject {
@@ -458,7 +481,8 @@ export function jsql(query: Query): QueryObject {
       case QueryKind.INSERT:
         return jsqlCompileInsert(query);
       case QueryKind.GRANT:
-        return jsqlCompileGrant(query);
+      case QueryKind.REVOKE:
+        return jsqlCompileGrantRevoke(query);
     }
   }
   throw new JSQLError('JSQL cannot build query out of the provided object');
@@ -561,6 +585,27 @@ export namespace jsql {
           privelege: privelege.name,
           on: rule.on,
           to: rule.to
+        };
+      }
+    }();
+
+  export const revoke = <
+    Privelege extends typeof select | typeof insert,
+    On extends Table<any, any>,
+    From extends Role<any>
+  >(
+    privelege: Privelege,
+    rule: { on: On; from: From }
+  ) =>
+    new class RevokeGenerator extends QueryGenerator<
+      Revoke<FunctionName<Privelege>, On, From>
+    > {
+      toJSQL(): Revoke<FunctionName<Privelege>, On, From> {
+        return {
+          kind: QueryKind.REVOKE,
+          privelege: privelege.name,
+          on: rule.on,
+          from: rule.from
         };
       }
     }();
