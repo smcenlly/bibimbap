@@ -10,7 +10,7 @@ PostgreMote:
     ☐ improve jsql with runtime guards
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
-    ☐ get rid of create and drop statements (because the only jsql should provide should be select, insert, delete, update, function calls)
+    ✔ get rid of create, drop, grant, and revoke statements (because the only provided statements should be select, insert, delete, update, function calls) @done
     ☐ implement function
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ☐ implement endpoint for setting cookie with jwt up

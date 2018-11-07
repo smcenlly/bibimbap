@@ -27,14 +27,11 @@ describe('making a query using an API end point', async () => {
     const client = await pool.connect();
 
     const TestTable = jsql.table('TestTable', [
-      jsql.column('name', {
-        type: String,
-        defaultValue: `I'm just a default value for a new table`
-      })
+      jsql.column('name', { type: String })
     ]);
 
     try {
-      await client.query(jsql.create(TestTable).toQueryObject());
+      await client.query(`create table ${escapeId(TestTable.$$)} (name text)`);
 
       await client.query(
         jsql.insert(TestTable, { name: `hey what's up` }).toQueryObject()
@@ -52,12 +49,7 @@ describe('making a query using an API end point', async () => {
       expect(error).toBeFalsy();
       expect(body).toEqual([{ name: `hey what's up` }]);
     } finally {
-      await client.query(
-        jsql
-          .drop(TestTable)
-          .ifExists()
-          .toQueryObject()
-      );
+      await client.query(`drop table if exists ${escapeId(TestTable.$$)}`);
       client.release();
     }
   });
@@ -73,21 +65,18 @@ describe('making a query using an API end point', async () => {
 
     // just a simple table with default name
     const TestTable = jsql.table('TestTable', [
-      jsql.column('name', {
-        type: String,
-        defaultValue: `I'm just a default value for a new table`
-      })
+      jsql.column('name', { type: String })
     ]);
 
     // and a few of the roles
-    const TestRoleOne = jsql.role('TestRoleOne');
-    const TestRoleTwo = jsql.role('TestRoleTwo');
+    const TestRoleOne = 'TestRoleOne';
+    const TestRoleTwo = 'TestRoleTwo';
 
     try {
       // we create all of the required entities
-      await client.query(jsql.create(TestRoleOne).toQueryObject());
-      await client.query(jsql.create(TestRoleTwo).toQueryObject());
-      await client.query(jsql.create(TestTable).toQueryObject());
+      await client.query(`create role ${escapeId(TestRoleOne)}`);
+      await client.query(`create role ${escapeId(TestRoleTwo)}`);
+      await client.query(`create table ${escapeId(TestTable.$$)} (name text)`);
 
       // and insert an entry into the test table
       await client.query(
@@ -95,23 +84,19 @@ describe('making a query using an API end point', async () => {
       );
 
       // now we grant select permission to the TestRoleOne
-      await client.query(
-        jsql
-          .grant(jsql.select, { on: TestTable, to: TestRoleOne })
-          .toQueryObject()
-      );
+      await client.query(`grant select
+        on ${escapeId(TestTable.$$)}
+        to ${escapeId(TestRoleOne)}`);
       // and deny select to the TestRoleTwo
-      await client.query(
-        jsql
-          .revoke(jsql.select, { on: TestTable, from: TestRoleTwo })
-          .toQueryObject()
-      );
+      await client.query(`revoke select
+        on ${escapeId(TestTable.$$)}
+        from ${escapeId(TestRoleTwo)}`);
 
       // now we're ready to perform a query to check if our server has
       // an authoriztion middleware
 
       // first of all let's sign a jwt token with a first role
-      const testTokenOne = jwt.sign({ sub: TestRoleOne.roleName }, secret);
+      const testTokenOne = jwt.sign({ sub: TestRoleOne }, secret);
 
       // when we make a request with jwt signed for the first role
       // we should have no any error
@@ -129,7 +114,7 @@ describe('making a query using an API end point', async () => {
       expect(body).toEqual([{ name: `Just for a test` }]);
 
       // now let's try the test role two
-      const testTokenTwo = jwt.sign({ sub: TestRoleTwo.roleName }, secret);
+      const testTokenTwo = jwt.sign({ sub: TestRoleTwo }, secret);
 
       // and here we get an error
       await request(app)
@@ -144,24 +129,9 @@ describe('making a query using an API end point', async () => {
         .expect(403);
     } finally {
       // cleaning everything up
-      await client.query(
-        jsql
-          .drop(TestTable)
-          .ifExists()
-          .toQueryObject()
-      );
-      await client.query(
-        jsql
-          .drop(TestRoleTwo)
-          .ifExists()
-          .toQueryObject()
-      );
-      await client.query(
-        jsql
-          .drop(TestRoleOne)
-          .ifExists()
-          .toQueryObject()
-      );
+      await client.query(`drop table if exists ${escapeId(TestTable.$$)}`);
+      await client.query(`drop role if exists ${escapeId(TestRoleTwo)}`);
+      await client.query(`drop role if exists ${escapeId(TestRoleOne)}`);
       client.release();
     }
   });

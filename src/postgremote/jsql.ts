@@ -243,18 +243,6 @@ function* extractTableColumns(
   }
 }
 
-type Role<RoleName extends string> = {
-  $: JSQLType.ROLE;
-  roleName: RoleName;
-};
-
-function makeRole<RoleName extends string>(roleName: RoleName): Role<RoleName> {
-  return {
-    $: JSQLType.ROLE,
-    roleName
-  };
-}
-
 type SelectExpression =
   | ColumnAsterisk<any>
   | ColumnLinked<any, any, any, any, any>
@@ -270,46 +258,6 @@ export enum QueryKind {
   GRANT,
   REVOKE
 }
-
-enum CreateKind {
-  TABLE,
-  ROLE
-}
-
-interface CreateTable {
-  kind: QueryKind.CREATE;
-  createKind: CreateKind.TABLE;
-  entity: Table<any, any>;
-}
-
-interface CreateRole {
-  kind: QueryKind.CREATE;
-  createKind: CreateKind.ROLE;
-  entity: Role<any>;
-}
-
-type Create = CreateTable | CreateRole;
-
-enum DropKind {
-  TABLE,
-  ROLE
-}
-
-interface DropTable {
-  kind: QueryKind.DROP;
-  dropKind: DropKind.TABLE;
-  entity: Table<any, any>;
-  ifExists?: boolean;
-}
-
-interface DropRole {
-  kind: QueryKind.DROP;
-  dropKind: DropKind.ROLE;
-  entity: Role<any>;
-  ifExists?: boolean;
-}
-
-type Drop = DropTable | DropRole;
 
 interface Select {
   kind: QueryKind.SELECT;
@@ -330,20 +278,6 @@ interface InsertValues<Into> {
 
 type Insert<Into> = InsertValues<Into>;
 
-type Grant<Privelege extends string, On, To> = {
-  kind: QueryKind.GRANT;
-  privelege: Privelege;
-  on: On;
-  to: To;
-};
-
-type Revoke<Privelege extends string, On, From> = {
-  kind: QueryKind.REVOKE;
-  privelege: Privelege;
-  on: On;
-  from: From;
-};
-
 type QueryObject = {
   text: string;
   values: any[];
@@ -351,11 +285,7 @@ type QueryObject = {
 
 export type Query =
   | Select
-  | Create
-  | Drop
-  | Insert<any>
-  | Grant<any, any, any>
-  | Revoke<any, any, any>;
+  | Insert<any>;
 
 export class JSQLError extends Error {
   constructor(message: string) {
@@ -363,45 +293,6 @@ export class JSQLError extends Error {
     Object.setPrototypeOf(this, JSQLError.prototype);
   }
 }
-
-const jsqlCompileCreate = (query: Create) => {
-  switch (query.createKind) {
-    case CreateKind.TABLE:
-      const tableName = escapeId(query.entity.$$);
-      const columnExpressions = [];
-      for (const column of extractTableColumns(query.entity)) {
-        const columnExpression = [escapeId(column.columnName)];
-        columnExpression.push('text');
-        columnExpression.push(
-          `DEFAULT ${escape(column.columnSettings.defaultValue)}`
-        );
-        columnExpressions.push(columnExpression.join(' '));
-      }
-      return {
-        text: `CREATE TABLE ${tableName} (${columnExpressions.join(', ')})`,
-        values: []
-      };
-
-    case CreateKind.ROLE:
-      return {
-        text: `CREATE ROLE ${escapeId(query.entity.roleName)}`,
-        values: []
-      };
-  }
-};
-
-const jsqlCompileDrop = (query: Drop) => {
-  const dropKind = query.dropKind === DropKind.TABLE ? 'TABLE' : 'ROLE';
-  const entityName =
-    query.dropKind === DropKind.TABLE ? query.entity.$$ : query.entity.roleName;
-
-  const ifExists = query.ifExists !== undefined ? ' IF EXISTS' : '';
-
-  return {
-    text: `DROP ${dropKind}${ifExists} ${escapeId(entityName)}`,
-    values: []
-  };
-};
 
 const jsqlCompileSelect = (query: Select) => {
   if (!query.from) {
@@ -466,57 +357,13 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
   }
 };
 
-const jsqlCompileGrantRevoke = <
-  Privelege extends string,
-  On extends Table<any, any>,
-  Subject extends Role<any>
->(
-  query: Grant<Privelege, On, Subject> | Revoke<Privelege, On, Subject>
-) => {
-  let privelege: string;
-  switch (query.privelege) {
-    case 'select':
-    case 'insert':
-      privelege = query.privelege.toUpperCase();
-      break;
-    default:
-      throw new JSQLError(
-        `There is no such a privelege like ${query.privelege}`
-      );
-  }
-
-  switch (query.kind) {
-    case QueryKind.GRANT:
-      return {
-        text: `GRANT ${privelege} ON ${escapeId(query.on.$$)} TO ${escapeId(
-          query.to.roleName
-        )}`,
-        values: []
-      };
-    case QueryKind.REVOKE:
-      return {
-        text: `REVOKE ${privelege} ON ${escapeId(query.on.$$)} FROM ${escapeId(
-          query.from.roleName
-        )}`,
-        values: []
-      };
-  }
-};
-
 export function jsql(query: Query): QueryObject {
   if (query) {
     switch (query.kind) {
       case QueryKind.SELECT:
         return jsqlCompileSelect(query);
-      case QueryKind.CREATE:
-        return jsqlCompileCreate(query);
-      case QueryKind.DROP:
-        return jsqlCompileDrop(query);
       case QueryKind.INSERT:
         return jsqlCompileInsert(query);
-      case QueryKind.GRANT:
-      case QueryKind.REVOKE:
-        return jsqlCompileGrantRevoke(query);
     }
   }
   throw new JSQLError('JSQL cannot build query out of the provided object');
@@ -524,7 +371,6 @@ export function jsql(query: Query): QueryObject {
 
 jsql.table = makeTable;
 jsql.column = makeColumn;
-jsql.role = makeRole;
 
 abstract class QueryGenerator<T extends Query> {
   abstract toJSQL(): T;
@@ -533,55 +379,6 @@ abstract class QueryGenerator<T extends Query> {
     return jsql(this.toJSQL());
   }
 }
-
-jsql.create = (entity: Table<any, any> | Role<any>) =>
-  new class CreateGenerator extends QueryGenerator<Create> {
-    toJSQL(): Create {
-      switch (entity.$) {
-        case JSQLType.TABLE:
-          return {
-            kind: QueryKind.CREATE,
-            createKind: CreateKind.TABLE,
-            entity
-          };
-        case JSQLType.ROLE:
-          return {
-            kind: QueryKind.CREATE,
-            createKind: CreateKind.ROLE,
-            entity
-          };
-      }
-    }
-  }();
-
-jsql.drop = (entity: Table<any, any> | Role<any>) =>
-  new class DropGenerator extends QueryGenerator<Drop> {
-    private _ifExists?: boolean;
-
-    ifExists() {
-      this._ifExists = true;
-      return this;
-    }
-
-    toJSQL(): Drop {
-      switch (entity.$) {
-        case JSQLType.TABLE:
-          return {
-            kind: QueryKind.DROP,
-            dropKind: DropKind.TABLE,
-            entity,
-            ifExists: this._ifExists
-          };
-        case JSQLType.ROLE:
-          return {
-            kind: QueryKind.DROP,
-            dropKind: DropKind.ROLE,
-            entity,
-            ifExists: this._ifExists
-          };
-      }
-    }
-  }();
 
 jsql.select = function select(...selectExpressions: SelectExpression[]) {
   return new class SelectGenerator extends QueryGenerator<Select> {
@@ -626,47 +423,3 @@ jsql.insert = function insert<Into extends Table<any, any>>(
     }
   }();
 };
-
-type FunctionName<F extends Function> = F['name'];
-
-jsql.grant = <
-  Privelege extends typeof jsql.select | typeof jsql.insert,
-  On extends Table<any, any>,
-  To extends Role<any>
->(
-  privelege: Privelege,
-  rule: { on: On; to: To }
-) =>
-  new class GrantGenerator extends QueryGenerator<
-    Grant<FunctionName<Privelege>, On, To>
-  > {
-    toJSQL(): Grant<FunctionName<Privelege>, On, To> {
-      return {
-        kind: QueryKind.GRANT,
-        privelege: privelege.name,
-        on: rule.on,
-        to: rule.to
-      };
-    }
-  }();
-
-jsql.revoke = <
-  Privelege extends typeof jsql.select | typeof jsql.insert,
-  On extends Table<any, any>,
-  From extends Role<any>
->(
-  privelege: Privelege,
-  rule: { on: On; from: From }
-) =>
-  new class RevokeGenerator extends QueryGenerator<
-    Revoke<FunctionName<Privelege>, On, From>
-  > {
-    toJSQL(): Revoke<FunctionName<Privelege>, On, From> {
-      return {
-        kind: QueryKind.REVOKE,
-        privelege: privelege.name,
-        on: rule.on,
-        from: rule.from
-      };
-    }
-  }();

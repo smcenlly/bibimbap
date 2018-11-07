@@ -65,30 +65,3 @@ jsql.insert(TestTable0, {
   withDefaultAndNullable: 'should work',
   required: 'this field is required'
 });
-
-
-/**
- * Grant/Revoke tests
- */
-const TableName1 = jsql.table('TableName', [
-  jsql.column('columnName', { type: String })
-]);
-const RoleName1 = jsql.role('RoleName');
-
-// these are wrong grant/revoke queries
-jsql.grant(jsql.select, { on: TableName1, from: RoleName1 });
-jsql.revoke(jsql.select, { on: TableName1, to: RoleName1 });
-
-// here should be an error, because we pass an anonymous function instead of
-// one of the privelege kinds
-jsql.grant(() => {}, { on: TableName1, to: RoleName1 });
-
-jsql.grant(jsql.select, { on: TableName1, to: RoleName1 });
-jsql.grant(jsql.insert, { on: TableName1, to: RoleName1 });
-
-// here should be an error, because we pass an anonymous function instead of
-// one of the privelege kinds
-jsql.revoke(() => {}, { on: TableName1, from: RoleName1 });
-
-jsql.revoke(jsql.select, { on: TableName1, from: RoleName1 });
-jsql.revoke(jsql.insert, { on: TableName1, from: RoleName1 });
