@@ -16,6 +16,7 @@ app.post('/', async (req, res) => {
   const secret = app.get('postgremote.secret');
   const defaultRole = app.get('postgremote.defaultRole');
   const tokenExpiresIn = app.get('postgremote.tokenExpiresIn');
+  const schema = app.get('postgremote.schema') || 'public';
 
   const client = await pool.connect();
   try {
@@ -26,6 +27,7 @@ app.post('/', async (req, res) => {
       };
       role = sub;
     }
+    await client.query(`SET search_path TO ${escapeId(schema)}`);
     await client.query(`SET ROLE ${escapeId(role)}`);
 
     const response = await client.query(jsql(req.body as Query));

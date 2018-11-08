@@ -29,6 +29,10 @@ describe('making a query using an API end point', async () => {
     }
   });
 
+  beforeEach(() => {
+    app.set('postgremote.schema', '');
+  });
+
   afterAll(async () => {
     const client = await pool.connect();
     try {
@@ -104,6 +108,47 @@ describe('making a query using an API end point', async () => {
       expect(error.text).toMatch('permission denied');
     } finally {
       await client.query(`drop table if exists ${escapeId(TestTable.$$)}`);
+      client.release();
+    }
+  });
+
+  it('should work with different schemas', async () => {
+    const schema = 'someSchemaToUse';
+    app.set('postgremote.schema', schema);
+
+    const client = await pool.connect();
+
+    const TestTable = jsql.table(`TestTable`, [
+      jsql.column('name', { type: String })
+    ]);
+
+    const tableName = escapeId([schema, TestTable.$$].join('.'));
+
+    try {
+      await client.query(`create schema ${escapeId(schema)}`);
+      await client.query(`create table ${tableName} (name text)`);
+      await client.query(`grant usage
+        on schema ${escapeId(schema)} to ${escapeId(anonymous)}`);
+      await client.query(`grant all privileges
+        on ${tableName} to ${escapeId(anonymous)}`);
+
+      await request(app)
+        .post('/')
+        .send(jsql.insert(TestTable, { name: 'Just for a test' }).toJSQL())
+        .expect(200);
+
+      await request(app)
+        .post('/')
+        .send(
+          jsql
+            .select(TestTable['*'])
+            .from(TestTable)
+            .toJSQL()
+        )
+        .expect(200);
+    } finally {
+      await client.query(`drop table ${tableName}`);
+      await client.query(`drop schema ${escapeId(schema)}`);
       client.release();
     }
   });

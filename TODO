@@ -16,7 +16,8 @@ PostgreMote:
     ✔ implement endpoint for setting cookie with jwt up @done
     ✔ use default guest role name provided from configuration @done
     ✔ use namespaced names for in app settings @done
-    ☐ make possible to configure which scheme is public, schema with name public should be default
+    ✔ make possible to configure which scheme is public, schema with name public should be default @done
+    ☐ make sure user can't work with postgres internal data structures except those that explicitly allowed to use
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
     ☐ set up error correct error handling
     ☐ pack the whole server as an express middleware with ability to provide configuration and connection pool link
