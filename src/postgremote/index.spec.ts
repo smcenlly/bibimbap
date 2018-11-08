@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from './index';
-import { jsql, escapeId } from './jsql';
+import { jsql, escapeId, escape } from './jsql';
 
 const connectionParams = {
   user: 'postgremote',
@@ -138,15 +138,23 @@ describe('making a query using an API end point', async () => {
 
   it(`should set up cookie with jwt`, async () => {
     const secret = 'this is a secret';
-    app.set('secret', secret);
-
+    // this is an application-wide token type name
     const tokenType = 'jwtToken';
-    app.set('tokenType', tokenType);
+    const tokenExpiresIn = 4 * 7 * 24 * 60 * 60e3;
+    app.set('secret', secret);
+    app.set('tokenExpiresIn', tokenExpiresIn);
 
     const client = await pool.connect();
 
     try {
       await client.query(`create type ${escapeId(tokenType)} as ( sub text )`);
+      const {
+        rows: [{ oid }]
+      } = await client.query(
+        `select oid from pg_type where typname = ${escape(tokenType)}`
+      );
+      app.set('tokenTypeID', oid);
+
       await client.query(`
         create or replace function login() returns ${escapeId(tokenType)} as $$
         declare
@@ -164,16 +172,21 @@ describe('making a query using an API end point', async () => {
       // so the only value except errors can be just true
       const login = jsql.function('login', [], Boolean);
 
-      const token = jwt.sign({ sub: 'roleName' }, secret);
-      const { body } = await request(app)
+      const response = await request(app)
         .post('/')
         .send(login({}).toJSQL())
-        .expect(200)
-        .expect(
-          'Set-Cookie',
-          `jwt=${token}; Secure; HttpOnly; Max-Age=${604800}; SameSite=Strict`
-        );
-      expect(body).toBe(true);
+        .expect(200);
+
+      expect(response.header['set-cookie'][0]).toEqual(
+        expect.stringContaining(`jwt=${jwt.sign({ sub: 'roleName' }, secret)}`)
+      );
+      expect(response.header['set-cookie'][0]).toEqual(
+        expect.stringContaining(`Max-Age=${tokenExpiresIn / 1e3}`)
+      );
+      expect(response.header['set-cookie'][0]).toEqual(
+        expect.stringContaining(`HttpOnly`)
+      );
+      expect(response.body).toBe(true);
     } finally {
       await client.query(`drop function if exists login()`);
       await client.query(`drop type if exists ${escapeId(tokenType)}`);

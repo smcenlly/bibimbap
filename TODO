@@ -13,9 +13,10 @@ PostgreMote:
     ☐ check if column names are unique for each table
     ✔ get rid of create, drop, grant, and revoke statements (because the only provided statements should be select, insert, delete, update, function calls) @done
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
-    ☐ implement endpoint for setting cookie with jwt up
+    ✔ implement endpoint for setting cookie with jwt up @done
     ☐ use default guest role name provided from configuration
-    ☐ pack the whole server as an express middleware
+    ☐ implement server bootstrap that populates token type oid based on the provided token type name
+    ☐ pack the whole server as an express middleware with ability to provide configuration and connection pool link
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
