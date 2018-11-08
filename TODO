@@ -16,7 +16,9 @@ PostgreMote:
     ✔ implement endpoint for setting cookie with jwt up @done
     ☐ use default guest role name provided from configuration
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
+    ☐ set up error correct error handling
     ☐ pack the whole server as an express middleware with ability to provide configuration and connection pool link
+  ☐ implement a request method that infer select types and wrap it with Promise
   ☐ implement a tool that generates TypeScript code for PostgreSQL stored functions and tables from the chosen scheme
   ☐ implement database migration tool for PostgreMote with auto code generation
   ☐ implement database testing tool PostgreMote with all the generated types used so we could make a static analysis over the tests
