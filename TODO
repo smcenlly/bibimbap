@@ -7,16 +7,10 @@ Chores:
 
 PostgreMote:
   ☐ implement an SQL-like DSL
-    ✔ implement function @done
     ☐ improve jsql with runtime guards
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
-    ✔ get rid of create, drop, grant, and revoke statements (because the only provided statements should be select, insert, delete, update, function calls) @done
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
-    ✔ implement endpoint for setting cookie with jwt up @done
-    ✔ use default guest role name provided from configuration @done
-    ✔ use namespaced names for in app settings @done
-    ✔ make possible to configure which scheme is public, schema with name public should be default @done
     ☐ make sure user can't work with postgres internal data structures except those that explicitly allowed to use
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
     ☐ set up error correct error handling
@@ -35,6 +29,12 @@ Test runner:
   ☐ implement bibimbap's own test runner
 
 Archive:
+  ✔ implement function @done @project(PostgreMote)
+  ✔ get rid of create, drop, grant, and revoke statements (because the only provided statements should be select, insert, delete, update, function calls) @done @project(PostgreMote)
+  ✔ implement endpoint for setting cookie with jwt up @done @project(PostgreMote)
+  ✔ use default guest role name provided from configuration @done @project(PostgreMote)
+  ✔ use namespaced names for in app settings @done @project(PostgreMote)
+  ✔ make possible to configure which scheme is public, schema with name public should be default @done @project(PostgreMote)
   ✔ implement jsql.revoke @done @project(PostgreMote)
   ✔ implement jsql.drop(table) @done @project(PostgreMote)
   ✔ implement jsql.drop(role) @done @project(PostgreMote)
