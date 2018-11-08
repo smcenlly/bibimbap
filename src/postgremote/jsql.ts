@@ -1,37 +1,9 @@
 import SqlString from 'sqlstring';
 
-export function escapeId(string: string): string {
-  if (typeof string !== 'string') {
-    throw new TypeError(
-      'Function escapeId takes only values type of string as an argument'
-    );
-  }
-  const forbiddenCharacters = Array.from(`'"&$%;`);
-  if (
-    forbiddenCharacters.some(forbidednCharacter =>
-      string.includes(forbidednCharacter)
-    )
-  ) {
-    throw new TypeError(
-      `Characters ${forbiddenCharacters} are denied to use in query identifiers`
-    );
-  }
-  return SqlString.escapeId(string).replace(/`/g, '"');
-}
-
-export function escape(string: string): string {
-  if (typeof string !== 'string') {
-    throw new TypeError(
-      'Function escape takes only values type of string as an argument'
-    );
-  }
-  return `E${SqlString.escape(string).replace(/(\$|\`)/g, '\\$1')}`;
-}
-
 enum JSQLType {
   COLUMN,
   TABLE,
-  ROLE
+  FUNCTION
 }
 
 type ColumnSettings<
@@ -84,23 +56,6 @@ type ColumnAsterisk<TableName extends string> = {
   tableName: TableName;
 };
 
-function makeColumn<
-  ColumnName extends string,
-  DataType extends (...args: any[]) => any,
-  DataDefaultable extends boolean | undefined,
-  DataNullable extends boolean | undefined
->(
-  columnName: ColumnName,
-  columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>
-): ColumnFree<ColumnName, DataType, DataDefaultable, DataNullable> {
-  return {
-    $: JSQLType.COLUMN,
-    kind: ColumnKind.FREE,
-    columnName: columnName,
-    columnSettings: columnSettings
-  };
-}
-
 type Table<
   TableName extends string,
   Columns extends ColumnFree<any, any, any, any>
@@ -131,48 +86,16 @@ type Table<
   }
 };
 
-function makeTable<
-  TableName extends string,
-  Column extends ColumnFree<any, any, any, any>
->(tableName: TableName, columns: Column[]): Table<TableName, Column> {
-  const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
-
-  result['$$'] = tableName;
-
-  result['*'] = {
-    $: JSQLType.COLUMN,
-    kind: ColumnKind.ASTERISK,
-    tableName: tableName
-  };
-
-  for (const column of columns) {
-    const columnLinked: ColumnLinked<
-      TableName,
-      Column['columnName'],
-      Column['columnSettings']['type'],
-      Column['columnSettings']['defaultValue'],
-      Column['columnSettings']['nullable']
-    > = {
-      $: JSQLType.COLUMN,
-      kind: ColumnKind.LINKED,
-      tableName: tableName,
-      columnName: column.columnName,
-      columnSettings: column.columnSettings
-    };
-    result[column.columnName] = {
-      ...columnLinked,
-
-      as(aliasName) {
-        return {
-          ...columnLinked,
-          aliasName
-        };
-      }
-    };
-  }
-
-  return result;
-}
+type StoredFunction<
+  FunctionName extends string,
+  Args extends ColumnFree<any, any, any, any>,
+  Returns extends (...args: any[]) => any
+> = {
+  (args: PropertiesFromColumns<Args>): QueryGenerator<Execute>;
+  functionName: FunctionName;
+  functionArgs: Args[];
+  functionReturnType: Returns;
+};
 
 type UnpackedColumns<OfTable> = OfTable extends Table<any, infer Columns>
   ? Columns
@@ -197,51 +120,33 @@ type RequiredColumns<
   ? never
   : AllColumnsOfTable;
 
-type NamedUnpackedColumn<
+type NamedColumn<
   ColumnName extends string,
-  UnpackedColumnsOfTable
-> = UnpackedColumnsOfTable extends ColumnFree<ColumnName, any, any, any>
-  ? UnpackedColumnsOfTable
-  : never;
+  Columns
+> = Columns extends ColumnFree<ColumnName, any, any, any> ? Columns : never;
 
-type UnpackedColumnType<
-  OfTable,
-  UnpackedColumnName extends string
-> = ReturnType<
-  NamedUnpackedColumn<
-    UnpackedColumnName,
-    UnpackedColumns<OfTable>
-  >['columnSettings']['type']
->;
+type ColumnType<
+  ColumnName extends string,
+  Columns extends ColumnFree<any, any, any, any>
+> = ReturnType<NamedColumn<ColumnName, Columns>['columnSettings']['type']>;
 
-type TableProperties<OfTable> = {
-  [UnpackedColumnName in NullableColumns<
-    UnpackedColumns<OfTable>
-  >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
+type PropertiesFromColumns<Args extends ColumnFree<any, any, any, any>> = {
+  [ArgName in NullableColumns<Args>['columnName']]+?: ColumnType<ArgName, Args>
 } &
   {
-    [UnpackedColumnName in DefaultableColumns<
-      UnpackedColumns<OfTable>
-    >['columnName']]+?: UnpackedColumnType<OfTable, UnpackedColumnName>
+    [ArgName in DefaultableColumns<Args>['columnName']]+?: ColumnType<
+      ArgName,
+      Args
+    >
   } &
   {
-    [UnpackedColumnName in RequiredColumns<
-      UnpackedColumns<OfTable>,
-      | NullableColumns<UnpackedColumns<OfTable>>
-      | DefaultableColumns<UnpackedColumns<OfTable>>
-    >['columnName']]: UnpackedColumnType<OfTable, UnpackedColumnName>
+    [ArgName in RequiredColumns<
+      Args,
+      NullableColumns<Args> | DefaultableColumns<Args>
+    >['columnName']]: ColumnType<ArgName, Args>
   };
 
-function* extractTableColumns(
-  table: Table<any, any>
-): IterableIterator<ColumnLinked<any, any, any, any, any>> {
-  for (const columnName of Object.getOwnPropertyNames(table)) {
-    if (columnName === '*' || columnName === '$' || columnName === '$$') {
-      continue;
-    }
-    yield table[columnName];
-  }
-}
+type TableProperties<OfTable> = PropertiesFromColumns<UnpackedColumns<OfTable>>;
 
 type SelectExpression =
   | ColumnAsterisk<any>
@@ -251,12 +156,9 @@ type SelectExpression =
 type FromExpression = Table<any, any>;
 
 export enum QueryKind {
-  CREATE,
-  DROP,
   SELECT,
   INSERT,
-  GRANT,
-  REVOKE
+  EXECUTE
 }
 
 interface Select {
@@ -278,19 +180,78 @@ interface InsertValues<Into> {
 
 type Insert<Into> = InsertValues<Into>;
 
+enum ExecuteKind {
+  FUNCTION
+}
+
+interface ExecuteFunction {
+  kind: QueryKind.EXECUTE;
+  executeKind: ExecuteKind.FUNCTION;
+  functionName: string;
+  functionArgs: ColumnFree<any, any, any, any>[];
+  args: { [key: string]: any };
+}
+
+type Execute = ExecuteFunction;
+
 type QueryObject = {
   text: string;
   values: any[];
 };
 
-export type Query =
-  | Select
-  | Insert<any>;
+export type Query = Select | Insert<any> | Execute;
+
+abstract class QueryGenerator<T extends Query> {
+  abstract toJSQL(): T;
+
+  toQueryObject() {
+    return jsql(this.toJSQL());
+  }
+}
 
 export class JSQLError extends Error {
   constructor(message: string) {
     super(message);
     Object.setPrototypeOf(this, JSQLError.prototype);
+  }
+}
+
+export function escapeId(string: string): string {
+  if (typeof string !== 'string') {
+    throw new TypeError(
+      'Function escapeId takes only values type of string as an argument'
+    );
+  }
+  const forbiddenCharacters = Array.from(`'"&$%;`);
+  if (
+    forbiddenCharacters.some(forbidednCharacter =>
+      string.includes(forbidednCharacter)
+    )
+  ) {
+    throw new TypeError(
+      `Characters ${forbiddenCharacters} are denied to use in query identifiers`
+    );
+  }
+  return SqlString.escapeId(string).replace(/`/g, '"');
+}
+
+export function escape(string: string): string {
+  if (typeof string !== 'string') {
+    throw new TypeError(
+      'Function escape takes only values type of string as an argument'
+    );
+  }
+  return `E${SqlString.escape(string).replace(/(\$|\`)/g, '\\$1')}`;
+}
+
+function* extractTableColumns(
+  table: Table<any, any>
+): IterableIterator<ColumnLinked<any, any, any, any, any>> {
+  for (const columnName of Object.getOwnPropertyNames(table)) {
+    if (columnName === '*' || columnName === '$' || columnName === '$$') {
+      continue;
+    }
+    yield table[columnName];
   }
 }
 
@@ -357,6 +318,23 @@ const jsqlCompileInsert = <Into extends Table<any, any>>(
   }
 };
 
+const jsqlCompileExecute = (query: Execute) => {
+  switch (query.executeKind) {
+    case ExecuteKind.FUNCTION:
+      return {
+        text: `SELECT ${escapeId(query.functionName)}(${query.functionArgs.map(
+          (_, i) => `$${i + 1}`
+        ).join(', ')})`,
+        values: query.functionArgs.map(
+          functionArg =>
+            query.args[functionArg.columnName]
+              ? query.args[functionArg.columnName]
+              : null
+        )
+      };
+  }
+};
+
 export function jsql(query: Query): QueryObject {
   if (query) {
     switch (query.kind) {
@@ -364,24 +342,103 @@ export function jsql(query: Query): QueryObject {
         return jsqlCompileSelect(query);
       case QueryKind.INSERT:
         return jsqlCompileInsert(query);
+      case QueryKind.EXECUTE:
+        return jsqlCompileExecute(query);
     }
   }
   throw new JSQLError('JSQL cannot build query out of the provided object');
 }
 
-jsql.table = makeTable;
-jsql.column = makeColumn;
+jsql.table = <
+  TableName extends string,
+  Column extends ColumnFree<any, any, any, any>
+>(
+  tableName: TableName,
+  columns: Column[]
+): Table<TableName, Column> => {
+  const result = { $: JSQLType.TABLE } as Table<TableName, Column>;
 
-abstract class QueryGenerator<T extends Query> {
-  abstract toJSQL(): T;
+  result['$$'] = tableName;
 
-  toQueryObject() {
-    return jsql(this.toJSQL());
+  result['*'] = {
+    $: JSQLType.COLUMN,
+    kind: ColumnKind.ASTERISK,
+    tableName: tableName
+  };
+
+  for (const column of columns) {
+    const columnLinked: ColumnLinked<
+      TableName,
+      Column['columnName'],
+      Column['columnSettings']['type'],
+      Column['columnSettings']['defaultValue'],
+      Column['columnSettings']['nullable']
+    > = {
+      $: JSQLType.COLUMN,
+      kind: ColumnKind.LINKED,
+      tableName: tableName,
+      columnName: column.columnName,
+      columnSettings: column.columnSettings
+    };
+    result[column.columnName] = {
+      ...columnLinked,
+
+      as(aliasName) {
+        return {
+          ...columnLinked,
+          aliasName
+        };
+      }
+    };
   }
-}
 
-jsql.select = function select(...selectExpressions: SelectExpression[]) {
-  return new class SelectGenerator extends QueryGenerator<Select> {
+  return result;
+};
+
+jsql.column = <
+  ColumnName extends string,
+  DataType extends (...args: any[]) => any,
+  DataDefaultable extends boolean | undefined,
+  DataNullable extends boolean | undefined
+>(
+  columnName: ColumnName,
+  columnSettings: ColumnSettings<DataType, DataDefaultable, DataNullable>
+): ColumnFree<ColumnName, DataType, DataDefaultable, DataNullable> => ({
+  $: JSQLType.COLUMN,
+  kind: ColumnKind.FREE,
+  columnName: columnName,
+  columnSettings: columnSettings
+});
+
+jsql.function = <
+  FunctionName extends string,
+  Args extends ColumnFree<any, any, any, any>,
+  Returns extends (...args: any[]) => any
+>(
+  functionName: FunctionName,
+  functionArgs: Args[],
+  returnType: Returns
+): StoredFunction<FunctionName, Args, Returns> => {
+  const executor = ((args: PropertiesFromColumns<Args>) =>
+    new class ExecuteGenerator extends QueryGenerator<Execute> {
+      toJSQL(): Execute {
+        return {
+          kind: QueryKind.EXECUTE,
+          executeKind: ExecuteKind.FUNCTION,
+          functionName,
+          functionArgs,
+          args
+        };
+      }
+    }()) as StoredFunction<FunctionName, Args, Returns>;
+  executor.functionName = functionName;
+  executor.functionArgs = functionArgs;
+  executor.functionReturnType = returnType;
+  return executor;
+};
+
+jsql.select = (...selectExpressions: SelectExpression[]) =>
+  new class SelectGenerator extends QueryGenerator<Select> {
     private fromExpression?: FromExpression;
 
     from(fromExpression: Table<any, any>) {
@@ -403,12 +460,11 @@ jsql.select = function select(...selectExpressions: SelectExpression[]) {
       };
     }
   }();
-};
 
-jsql.insert = function insert<Into extends Table<any, any>>(
+jsql.insert = <Into extends Table<any, any>>(
   table: Into,
   values: TableProperties<Into>
-) {
+) => {
   if (Object.getOwnPropertyNames(values).length === 0) {
     throw new JSQLError('You should pass at least one column');
   }

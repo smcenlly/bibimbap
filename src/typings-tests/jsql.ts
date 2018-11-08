@@ -65,3 +65,37 @@ jsql.insert(TestTable0, {
   withDefaultAndNullable: 'should work',
   required: 'this field is required'
 });
+
+/**
+ * Function calls
+ */
+const noArgs = jsql.function('noArgs', [], Boolean);
+const oneArgRequiredTwoOptional = jsql.function(
+  'oneArg',
+  [
+    jsql.column('arg', { type: String }),
+    jsql.column('nullable', { type: Number, nullable: true }),
+    jsql.column('defaultable', { type: Boolean, defaultable: true })
+  ],
+  String
+);
+
+// wrong no args call
+noArgs();
+
+noArgs({});
+
+// here too for the same reason as above
+oneArgRequiredTwoOptional({});
+
+oneArgRequiredTwoOptional({ arg: 'string' });
+
+// wrong type of arg
+oneArgRequiredTwoOptional({ arg: 1 });
+// wrong type of arg
+oneArgRequiredTwoOptional({
+  arg: '',
+  defaultable: 'string instead of boolean'
+});
+// wrong type of arg
+oneArgRequiredTwoOptional({ arg: '', nullable: 'string instead of number' });

@@ -36,6 +36,46 @@ describe(`DSL`, () => {
     });
   });
 
+  describe(`functions`, () => {
+    test(`SELECT "login"()`, () => {
+      const login = jsql.function('login', [], Boolean);
+      expect(login({}).toQueryObject()).toEqual({
+        text: `SELECT "login"()`,
+        values: []
+      });
+    });
+
+    test(`SELECT "login"($1, $2)`, () => {
+      const login = jsql.function(
+        'login',
+        [
+          jsql.column('username', { type: String }),
+          jsql.column('password', { type: String, defaultable: true })
+        ],
+        Boolean
+      );
+
+      expect(
+        login({ username: 'username', password: 'password' }).toQueryObject()
+      ).toEqual({
+        text: `SELECT "login"($1, $2)`,
+        values: ['username', 'password']
+      });
+
+      expect(
+        login({ password: 'password', username: 'username' }).toQueryObject()
+      ).toEqual({
+        text: `SELECT "login"($1, $2)`,
+        values: ['username', 'password']
+      });
+
+      expect(login({ username: 'username' }).toQueryObject()).toEqual({
+        text: `SELECT "login"($1, $2)`,
+        values: ['username', null]
+      });
+    });
+  });
+
   describe(`select`, () => {
     it(`should implement JSQLQuery type, otherwise throw error`, () => {
       expect(() => {

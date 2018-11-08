@@ -158,12 +158,16 @@ describe('making a query using an API end point', async () => {
         $$ language plpgsql;
       `);
 
+      // postgremote should generate jsql function that returns boolean instead
+      // of token type, because postgremote should not allow to work directly
+      // with token, it is going to be set up using http only cookies
+      // so the only value except errors can be just true
       const login = jsql.function('login', [], Boolean);
 
       const token = jwt.sign({ sub: 'roleName' }, secret);
       const { body } = await request(app)
         .post('/')
-        .send(login().toJSQL())
+        .send(login({}).toJSQL())
         .expect(200)
         .expect(
           'Set-Cookie',
