@@ -23,6 +23,10 @@ describe('making a query using an API end point', async () => {
 
     const client = await pool.connect();
     try {
+      await client.query(`set role postgres`);
+      await client.query(`revoke select
+        on all tables in schema pg_catalog
+        from public`);
       await client.query(`create role ${escapeId(anonymous)}`);
     } finally {
       client.release();
@@ -36,6 +40,7 @@ describe('making a query using an API end point', async () => {
   afterAll(async () => {
     const client = await pool.connect();
     try {
+      await client.query(`set role postgres`);
       await client.query(`drop role ${escapeId(anonymous)}`);
     } finally {
       client.release();
@@ -291,5 +296,22 @@ describe('making a query using an API end point', async () => {
       await client.query(`drop type if exists ${escapeId(tokenType)}`);
       client.release();
     }
+  });
+
+  it(`should deny to use internal pg data`, async () => {
+    const PgStatsActivity = jsql.table('pg_stat_activity', [
+      jsql.column('username', { type: String })
+    ]);
+
+    const { error } = await request(app)
+      .post('/')
+      .send(
+        jsql
+          .select(PgStatsActivity['*'])
+          .from(PgStatsActivity)
+          .toJSQL()
+      )
+      .expect(403);
+    expect(error.text).toMatch('permission denied');
   });
 });

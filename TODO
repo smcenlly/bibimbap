@@ -11,7 +11,7 @@ PostgreMote:
     ☐ get rid of sqlstring dependency
     ☐ check if column names are unique for each table
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
-    ☐ make sure user can't work with postgres internal data structures except those that explicitly allowed to use
+    ✔ make sure user can't work with postgres internal data structures except those that explicitly allowed to use @done
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
     ☐ set up error correct error handling
     ☐ pack the whole server as an express middleware with ability to provide configuration and connection pool link
