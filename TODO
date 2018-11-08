@@ -14,7 +14,9 @@ PostgreMote:
     ✔ get rid of create, drop, grant, and revoke statements (because the only provided statements should be select, insert, delete, update, function calls) @done
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ✔ implement endpoint for setting cookie with jwt up @done
-    ☐ use default guest role name provided from configuration
+    ✔ use default guest role name provided from configuration @done
+    ☐ use namespaced names for in app settings
+    ☐ make possible to configure which scheme is public, schema with name public should be default
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
     ☐ set up error correct error handling
     ☐ pack the whole server as an express middleware with ability to provide configuration and connection pool link

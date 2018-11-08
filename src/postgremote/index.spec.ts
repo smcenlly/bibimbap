@@ -14,12 +14,28 @@ const connectionParams = {
 describe('making a query using an API end point', async () => {
   let pool: Pool;
 
-  beforeAll(() => {
+  const anonymous = 'anonymous';
+
+  beforeAll(async () => {
     pool = new Pool(connectionParams);
     app.set('pool', pool);
+    app.set('defaultRole', anonymous);
+
+    const client = await pool.connect();
+    try {
+      await client.query(`create role ${escapeId(anonymous)}`);
+    } finally {
+      client.release();
+    }
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    const client = await pool.connect();
+    try {
+      await client.query(`drop role ${escapeId(anonymous)}`);
+    } finally {
+      client.release();
+    }
     pool.end();
   });
 
@@ -32,6 +48,9 @@ describe('making a query using an API end point', async () => {
 
     try {
       await client.query(`create table ${escapeId(TestTable.$$)} (name text)`);
+      await client.query(
+        `grant select on ${escapeId(TestTable.$$)} to ${escapeId(anonymous)}`
+      );
 
       await client.query(
         jsql.insert(TestTable, { name: `hey what's up` }).toQueryObject()
@@ -48,6 +67,41 @@ describe('making a query using an API end point', async () => {
 
       expect(error).toBeFalsy();
       expect(body).toEqual([{ name: `hey what's up` }]);
+    } finally {
+      await client.query(`drop table if exists ${escapeId(TestTable.$$)}`);
+      client.release();
+    }
+  });
+
+  it(`should use default role
+      when there is no valid token provided`, async () => {
+    const client = await pool.connect();
+
+    const TestTable = jsql.table('TestTable', [
+      jsql.column('name', { type: String })
+    ]);
+
+    try {
+      await client.query(`create table ${escapeId(TestTable.$$)} (name text)`);
+      await client.query(
+        `revoke select on ${escapeId(TestTable.$$)} from ${escapeId(anonymous)}`
+      );
+
+      await client.query(
+        jsql.insert(TestTable, { name: `hey what's up` }).toQueryObject()
+      );
+
+      const { error } = await request(app)
+        .post('/')
+        .send(
+          jsql
+            .select(TestTable['*'])
+            .from(TestTable)
+            .toJSQL()
+        )
+        .expect(403);
+
+      expect(error.text).toMatch('permission denied');
     } finally {
       await client.query(`drop table if exists ${escapeId(TestTable.$$)}`);
       client.release();

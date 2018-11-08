@@ -14,15 +14,19 @@ app.post('/', async (req, res) => {
   const pool: Pool = app.get('pool');
   const tokenTypeID: number | undefined = app.get('tokenTypeID');
   const secret: string = app.get('secret');
+  const defaultRole = app.get('defaultRole');
 
   const client = await pool.connect();
   try {
+    let role = defaultRole;
     if (req.cookies.jwt) {
-      const { sub } = verify(req.cookies.jwt, app.get('secret')) as {
+      const { sub } = verify(req.cookies.jwt, secret) as {
         [key: string]: any;
       };
-      await client.query(`SET ROLE ${escapeId(sub)}`);
+      role = sub;
     }
+    await client.query(`SET ROLE ${escapeId(role)}`);
+
     const response = await client.query(jsql(req.body as Query));
     const tokenField = response.fields.find(
       field => field.dataTypeID === tokenTypeID
@@ -34,7 +38,7 @@ app.post('/', async (req, res) => {
       res.cookie('jwt', token, {
         secure: true,
         httpOnly: true,
-        maxAge: 4 * 7 * 24 * 60 * 60e3,
+        maxAge: app.get('tokenExpiresIn'),
         sameSite: 'Strict'
       });
       result = true;
