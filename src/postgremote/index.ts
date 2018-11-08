@@ -11,10 +11,11 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 
 app.post('/', async (req, res) => {
-  const pool: Pool = app.get('pool');
-  const tokenTypeID: number | undefined = app.get('tokenTypeID');
-  const secret: string = app.get('secret');
-  const defaultRole = app.get('defaultRole');
+  const pool: Pool = app.get('postgremote.pool');
+  const tokenTypeID = app.get('postgremote.tokenTypeID');
+  const secret = app.get('postgremote.secret');
+  const defaultRole = app.get('postgremote.defaultRole');
+  const tokenExpiresIn = app.get('postgremote.tokenExpiresIn');
 
   const client = await pool.connect();
   try {
@@ -38,7 +39,7 @@ app.post('/', async (req, res) => {
       res.cookie('jwt', token, {
         secure: true,
         httpOnly: true,
-        maxAge: app.get('tokenExpiresIn'),
+        maxAge: tokenExpiresIn,
         sameSite: 'Strict'
       });
       result = true;

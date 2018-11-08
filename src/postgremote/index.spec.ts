@@ -18,8 +18,8 @@ describe('making a query using an API end point', async () => {
 
   beforeAll(async () => {
     pool = new Pool(connectionParams);
-    app.set('pool', pool);
-    app.set('defaultRole', anonymous);
+    app.set('postgremote.pool', pool);
+    app.set('postgremote.defaultRole', anonymous);
 
     const client = await pool.connect();
     try {
@@ -110,7 +110,7 @@ describe('making a query using an API end point', async () => {
 
   it('should use middleware to verify jwt gathered from cookies', async () => {
     const secret = 'this is a secret';
-    app.set('secret', secret);
+    app.set('postgremote.secret', secret);
 
     const client = await pool.connect();
 
@@ -195,8 +195,8 @@ describe('making a query using an API end point', async () => {
     // this is an application-wide token type name
     const tokenType = 'jwtToken';
     const tokenExpiresIn = 4 * 7 * 24 * 60 * 60e3;
-    app.set('secret', secret);
-    app.set('tokenExpiresIn', tokenExpiresIn);
+    app.set('postgremote.secret', secret);
+    app.set('postgremote.tokenExpiresIn', tokenExpiresIn);
 
     const client = await pool.connect();
 
@@ -207,7 +207,7 @@ describe('making a query using an API end point', async () => {
       } = await client.query(
         `select oid from pg_type where typname = ${escape(tokenType)}`
       );
-      app.set('tokenTypeID', oid);
+      app.set('postgremote.tokenTypeID', oid);
 
       await client.query(`
         create or replace function login() returns ${escapeId(tokenType)} as $$

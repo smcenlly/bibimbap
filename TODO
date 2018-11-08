@@ -15,7 +15,7 @@ PostgreMote:
   ☐ implement a simple server that converts an SQL-like DSL received over some sort of protocol and then makes a request to the database
     ✔ implement endpoint for setting cookie with jwt up @done
     ✔ use default guest role name provided from configuration @done
-    ☐ use namespaced names for in app settings
+    ✔ use namespaced names for in app settings @done
     ☐ make possible to configure which scheme is public, schema with name public should be default
     ☐ implement server bootstrap that populates token type oid based on the provided token type name
     ☐ set up error correct error handling
